@@ -547,10 +547,11 @@ export default function App() {
   const pedidosDeEstaTienda = Array.isArray(pedidosPorTienda[selectedStore])
     ? pedidosPorTienda[selectedStore]
     : [];
-  const fechasUnicas = [...new Set(pedidosDeEstaTienda.map(p => p.fecha).filter(Boolean))];
+  const pedidosDeEstaTiendaOrdenados = [...pedidosDeEstaTienda].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  const fechasUnicas = [...new Set(pedidosDeEstaTiendaOrdenados.map(p => p.fecha).filter(Boolean))].sort((a,b)=>new Date(b)-new Date(a));
   const pedidosFiltrados = filtroFecha
-    ? pedidosDeEstaTienda.filter(p => p.fecha === filtroFecha)
-    : pedidosDeEstaTienda;
+    ? pedidosDeEstaTiendaOrdenados.filter(p => p.fecha === filtroFecha)
+    : pedidosDeEstaTiendaOrdenados;
   const pedidoAEditar = editingIndex !== null ? pedidosDeEstaTienda[editingIndex] : undefined;
   const isAnyPopupOpen = showPedidoModal || showConfirmPopup || showReagendarPopup;
 
@@ -660,6 +661,7 @@ export default function App() {
                         <tr className="bg-blue-50">
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Cliente</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Dirección</th>
+                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Entre calles</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Teléfono</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Productos</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Precio</th>
@@ -672,7 +674,7 @@ export default function App() {
                       <tbody>
                         {pedidosFiltrados.length
                           ? pedidosFiltrados.map((pedido, idx) => {
-                              const pedidoIdx = pedidosDeEstaTienda.indexOf(pedido);
+                              const pedidoIdx = pedidosDeEstaTiendaOrdenados.indexOf(pedido);
                               let colorFila = "";
                               let colorNombre = "";
                               if (pedido.estado === "efectivo") colorFila = "bg-green-700 text-white";
@@ -687,6 +689,7 @@ export default function App() {
                                   <td className="px-3 py-2 border-b text-left">
                                     {[pedido.calleNumero, pedido.colonia, pedido.municipio, pedido.codigoPostal].filter(Boolean).join(", ")}
                                   </td>
+                                  <td className="px-3 py-2 border-b text-left">{pedido.entreCalles || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.telefono || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">
                                     {pedido.productos?.map((p, i) => (
@@ -737,12 +740,12 @@ export default function App() {
                             })
                           : (
                             <tr>
-                              <td className="px-3 py-2 border-b text-left" colSpan={9}></td>
+                              <td className="px-3 py-2 border-b text-left" colSpan={10}></td>
                             </tr>
                           )
                         }
                         <tr>
-                          <td colSpan={9} className="px-3 py-2 border-b text-left align-middle">
+                          <td colSpan={10} className="px-3 py-2 border-b text-left align-middle">
                             <div className="flex items-center gap-2">
                               <label htmlFor="filtroFecha" className="text-slate-700 text-base font-medium mr-2">Filtrar por fecha:</label>
                               <select
