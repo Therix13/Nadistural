@@ -417,7 +417,8 @@ export default function App() {
     }
   };
 
-  const handleEliminarPedido = async (idx) => {
+  const handleEliminarPedido = async (pedidoId) => {
+    const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     const pedido = pedidosDeEstaTienda[idx];
     if (!pedido || !selectedStore) return;
     try {
@@ -433,12 +434,14 @@ export default function App() {
     }
   };
 
-  const handleEditarPedido = (idx) => {
+  const handleEditarPedido = (pedidoId) => {
+    const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setEditingIndex(idx);
     setShowPedidoModal(true);
   };
 
-  const handleConfirmarPedido = async (idx) => {
+  const handleConfirmarPedido = async (pedidoId) => {
+    const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setConfirmIdx(idx);
     setShowConfirmPopup(true);
   };
@@ -673,8 +676,7 @@ export default function App() {
                       </thead>
                       <tbody>
                         {pedidosFiltrados.length
-                          ? pedidosFiltrados.map((pedido, idx) => {
-                              const pedidoIdx = pedidosDeEstaTiendaOrdenados.indexOf(pedido);
+                          ? pedidosFiltrados.map((pedido) => {
                               let colorFila = "";
                               let colorNombre = "";
                               if (pedido.estado === "efectivo") colorFila = "bg-green-700 text-white";
@@ -682,7 +684,7 @@ export default function App() {
                               if (pedido.estado === "cancelado") colorFila = "bg-red-700 text-white";
                               if (pedido.estado === "reagendo") colorNombre = "bg-yellow-400 text-yellow-900 font-bold rounded px-1";
                               return (
-                                <tr key={pedido.id || idx} className={`${colorFila}`}>
+                                <tr key={pedido.id} className={`${colorFila}`}>
                                   <td className="px-3 py-2 border-b text-left">
                                     <span className={colorNombre}>{pedido.nombre || ""}</span>
                                   </td>
@@ -710,7 +712,7 @@ export default function App() {
                                           <button
                                             title="Editar"
                                             className="focus:outline-none group"
-                                            onClick={() => handleEditarPedido(pedidoIdx)}
+                                            onClick={() => handleEditarPedido(pedido.id)}
                                             disabled={isAnyPopupOpen}
                                           >
                                             <IconEdit />
@@ -718,7 +720,7 @@ export default function App() {
                                           <button
                                             title="Eliminar"
                                             className="focus:outline-none group"
-                                            onClick={() => handleEliminarPedido(pedidoIdx)}
+                                            onClick={() => handleEliminarPedido(pedido.id)}
                                             disabled={isAnyPopupOpen}
                                           >
                                             <IconDelete />
@@ -726,7 +728,7 @@ export default function App() {
                                           <button
                                             title="Confirmar"
                                             className="focus:outline-none group"
-                                            onClick={() => handleConfirmarPedido(pedidoIdx)}
+                                            onClick={() => handleConfirmarPedido(pedido.id)}
                                             disabled={isAnyPopupOpen}
                                           >
                                             <IconConfirm />

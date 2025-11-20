@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 export default function PedidoModal({ open, onClose, onSubmit, initialValues }) {
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [entreCalles, setEntreCalles] = useState(""); // Nuevo campo
+  const [entreCalles, setEntreCalles] = useState("");
   const [productos, setProductos] = useState([{ producto: "", cantidad: 1 }]);
   const [precio, setPrecio] = useState("");
   const [nota, setNota] = useState("");
@@ -18,7 +18,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
     if (initialValues) {
       setNombre(initialValues.nombre || "");
       setTelefono(initialValues.telefono || "");
-      setEntreCalles(initialValues.entreCalles || ""); // Cargar el valor si existe
+      setEntreCalles(initialValues.entreCalles || "");
       setProductos(
         Array.isArray(initialValues.productos) && initialValues.productos.length > 0
           ? initialValues.productos.map((p) => ({ ...p }))
@@ -35,7 +35,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
     } else {
       setNombre("");
       setTelefono("");
-      setEntreCalles(""); // Inicializar el campo nuevo
+      setEntreCalles("");
       setProductos([{ producto: "", cantidad: 1 }]);
       setPrecio("");
       setNota("");
@@ -75,7 +75,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
       colonia: colonia,
       municipio: municipio,
       codigoPostal: codigoPostal,
-      entreCalles: entreCalles, // Incluir el nuevo campo
+      entreCalles: entreCalles,
       telefono: telefono,
       productos: productos,
       precio: precio,
@@ -150,7 +150,6 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
                 />
               </label>
             </div>
-            {/* Campo Entre Calles arriba del Teléfono */}
             <label className="flex flex-col w-full gap-1">
               <span className="text-sm text-slate-600 font-semibold">Entre calles</span>
               <input
