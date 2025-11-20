@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from "react";
 
 export default function PedidoModal({ open, onClose, onSubmit, initialValues }) {
+  const getTomorrow = () => {
+    const today = new Date();
+    let tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    if (today.getDay() === 6) {
+      tomorrow.setDate(today.getDate() + 2);
+    }
+    return tomorrow.toISOString().split("T")[0];
+  };
+
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [entreCalles, setEntreCalles] = useState("");
   const [productos, setProductos] = useState([{ producto: "", cantidad: 1 }]);
   const [precio, setPrecio] = useState("");
   const [nota, setNota] = useState("");
-  const [fecha, setFecha] = useState("");
+  const [fecha, setFecha] = useState(getTomorrow());
   const [calleNumero, setCalleNumero] = useState("");
   const [colonia, setColonia] = useState("");
   const [municipio, setMunicipio] = useState("");
@@ -26,7 +36,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
       );
       setPrecio(initialValues.precio || "");
       setNota(initialValues.nota || "");
-      setFecha(initialValues.fecha || "");
+      setFecha(initialValues.fecha || getTomorrow());
       setCalleNumero(initialValues.calleNumero || "");
       setColonia(initialValues.colonia || "");
       setMunicipio(initialValues.municipio || "");
@@ -39,7 +49,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
       setProductos([{ producto: "", cantidad: 1 }]);
       setPrecio("");
       setNota("");
-      setFecha("");
+      setFecha(getTomorrow());
       setCalleNumero("");
       setColonia("");
       setMunicipio("");
