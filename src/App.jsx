@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import Login from "./Login";
 import Configuracion from "./Configuracion";
 import PedidoModal from "./PedidoModal";
+import Exportarexcel from "./Exportarexcel";
 import {
   findUserByCredentials,
   getAllUsers,
@@ -603,7 +604,7 @@ export default function App() {
       )}
 
       <main className="flex-1 flex items-center justify-center pt-6 px-2 md:px-4">
-        <div className={`w-[90vw] flex justify-center`}>
+        <div className="w-[90vw] flex justify-center">
           {!user ? (
             <Login onLogin={handleLogin} />
           ) : (
@@ -658,6 +659,9 @@ export default function App() {
                     Agregar Pedido
                   </button>
                   <h3 className="text-lg font-semibold text-slate-900 mb-2 text-left">Pedidos</h3>
+                  <div className="w-full flex justify-end mb-2">
+                    <Exportarexcel pedidos={pedidosDeEstaTiendaOrdenados} tienda={selectedStore} />
+                  </div>
                   <div style={{ width: "100%", minWidth: "700px", maxWidth: "100%", overflowX: "auto" }}>
                     <table className="min-w-full border border-slate-200 rounded-xl shadow bg-white" style={{ width: "100%", minWidth: "700px", maxWidth: "100vw" }}>
                       <thead>
