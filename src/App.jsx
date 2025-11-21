@@ -146,6 +146,19 @@ function getFechaAgendadaHoy() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatoFecha(fechaString) {
+  if (!fechaString) return "";
+  const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const [yyyy, mm, dd] = fechaString.split("-");
+  const fecha = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  if (isNaN(fecha.getTime())) return "";
+  const dia = diasSemana[fecha.getDay()];
+  const d = String(fecha.getDate()).padStart(2, "0");
+  const m = String(fecha.getMonth() + 1).padStart(2, "0");
+  const y = String(fecha.getFullYear()).slice(2);
+  return `${dia}_${d}/${m}/${y}`;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [currentUserObj, setCurrentUserObj] = useState(null);
@@ -158,10 +171,9 @@ export default function App() {
   const [showReagendarPopup, setShowReagendarPopup] = useState(false);
   const [reagendarIdx, setReagendarIdx] = useState(null);
   const [pedidosPorTienda, setPedidosPorTienda] = useState({});
-  const [filtroFecha, setFiltroFecha] = useState("");
+  const [filtroFecha, setFiltroFecha] = useState("ninguna");
   const [editingIndex, setEditingIndex] = useState(null);
   const [confirmIdx, setConfirmIdx] = useState(null);
-
   useEffect(() => {
     async function load() {
       try {
@@ -174,10 +186,8 @@ export default function App() {
           stores: d.stores || [],
         }));
         setUsers(mappedUsers);
-
         const sDocs = await getAllStores();
         setStores(sDocs.map((s) => s.name));
-
         if (user) {
           const existing = mappedUsers.find((u) => u.nombre === user);
           if (existing) setCurrentUserObj(existing);
@@ -188,7 +198,6 @@ export default function App() {
     }
     load();
   }, [user]);
-
   useEffect(() => {
     async function cargarPedidosTienda() {
       if (selectedStore) {
@@ -202,7 +211,6 @@ export default function App() {
     }
     cargarPedidosTienda();
   }, [selectedStore, showPedidoModal]);
-
   const handleLogin = async (username, password) => {
     const u = (username || "").trim();
     const p = password || "";
@@ -261,14 +269,12 @@ export default function App() {
       return { ok: false, message: "Error al autenticar. Revisa la consola." };
     }
   };
-
   const handleLogout = () => {
     setUser(null);
     setCurrentUserObj(null);
     setView("inicio");
     setSelectedStore(null);
   };
-
   const handleAddUser = async (newUser) => {
     if (!newUser || !newUser.nombre) return;
     try {
@@ -309,7 +315,6 @@ export default function App() {
       console.error("handleAddUser error:", err);
     }
   };
-
   const handleUpdateUser = async (updatedUser) => {
     if (!updatedUser) return;
     try {
@@ -321,7 +326,6 @@ export default function App() {
         if (updatedUser.rol !== undefined) payload.rol = updatedUser.rol;
         if (updatedUser.stores !== undefined) payload.stores = updatedUser.stores;
         await updateUserInFirestore(id, payload);
-
         setUsers((prev) =>
           prev.map((u) =>
             u.id === id
@@ -374,7 +378,6 @@ export default function App() {
       console.error("handleUpdateUser error:", err);
     }
   };
-
   const handleAddStore = async (storeName) => {
     if (!storeName || !storeName.trim()) return;
     const s = storeName.trim();
@@ -386,13 +389,11 @@ export default function App() {
       console.error("handleAddStore error:", err);
     }
   };
-
   const handleSelectStore = async (storeName) => {
     if (!storeName) return;
     setSelectedStore(storeName);
     setView("store");
   };
-
   const handleAddPedido = async (pedido) => {
     if (editingIndex !== null) {
       const pedidoActual = pedidosDeEstaTienda[editingIndex];
@@ -417,7 +418,6 @@ export default function App() {
       }
     }
   };
-
   const handleEliminarPedido = async (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     const pedido = pedidosDeEstaTienda[idx];
@@ -434,19 +434,16 @@ export default function App() {
       console.error("Error eliminando el pedido de Firestore:", err);
     }
   };
-
   const handleEditarPedido = (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setEditingIndex(idx);
     setShowPedidoModal(true);
   };
-
   const handleConfirmarPedido = async (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setConfirmIdx(idx);
     setShowConfirmPopup(true);
   };
-
   const handlePedidoAccion = async (accion) => {
     const pedido = pedidosDeEstaTienda[confirmIdx];
     if (!pedido || !selectedStore) {
@@ -477,7 +474,6 @@ export default function App() {
       setConfirmIdx(null);
     }
   };
-
   const handleReagendarConfirm = async (nuevaFecha) => {
     const pedido = pedidosDeEstaTienda[reagendarIdx];
     if (!pedido || !selectedStore) {
@@ -509,13 +505,11 @@ export default function App() {
       setConfirmIdx(null);
     }
   };
-
   const handleReagendarCancel = () => {
     setShowReagendarPopup(false);
     setReagendarIdx(null);
     setConfirmIdx(null);
   };
-
   const handleDeleteUser = async (id) => {
     try {
       await deleteUserFromFirestore(id);
@@ -528,7 +522,6 @@ export default function App() {
       console.error("Error eliminando el usuario de Firestore:", err);
     }
   };
-
   const handleDeleteStore = async (storeName) => {
     try {
       await deleteStoreFromFirestore(storeName);
@@ -543,7 +536,6 @@ export default function App() {
       console.error("Error eliminando la tienda de Firestore:", err);
     }
   };
-
   const isAdmin = currentUserObj?.rol === "admin" || user === "admin";
   const visibleStores = isAdmin
     ? stores
@@ -553,17 +545,17 @@ export default function App() {
     : [];
   const pedidosDeEstaTiendaOrdenados = [...pedidosDeEstaTienda].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
   const fechasUnicas = [...new Set(pedidosDeEstaTiendaOrdenados.map(p => p.fecha).filter(Boolean))].sort((a,b)=>new Date(b)-new Date(a));
-  const pedidosFiltrados = filtroFecha
-    ? pedidosDeEstaTiendaOrdenados.filter(p => p.fecha === filtroFecha)
-    : pedidosDeEstaTiendaOrdenados;
+  const pedidosFiltrados = filtroFecha === "ninguna"
+    ? []
+    : filtroFecha === ""
+    ? pedidosDeEstaTiendaOrdenados
+    : pedidosDeEstaTiendaOrdenados.filter(p => p.fecha === filtroFecha);
   const pedidoAEditar = editingIndex !== null ? pedidosDeEstaTienda[editingIndex] : undefined;
   const isAnyPopupOpen = showPedidoModal || showConfirmPopup || showReagendarPopup;
-
   function canEditDeleteConfirm(estado, isAdmin) {
     if (isAdmin) return true;
     return estado === "reagendo" || estado === undefined || estado === "";
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col relative">
       {user && (
@@ -578,7 +570,6 @@ export default function App() {
       {isAnyPopupOpen &&
         <div className="fixed inset-0 z-[99] pointer-events-auto select-auto" />
       }
-
       {showPedidoModal && (
         <PedidoModal
           open={showPedidoModal}
@@ -602,9 +593,8 @@ export default function App() {
           fechaOriginal={reagendarIdx !== null && pedidosDeEstaTienda[reagendarIdx] ? pedidosDeEstaTienda[reagendarIdx].fecha : ""}
         />
       )}
-
       <main className="flex-1 flex items-center justify-center pt-6 px-2 md:px-4">
-        <div className="w-[90vw] flex justify-center">
+        <div className={`w-[90vw] flex justify-center`}>
           {!user ? (
             <Login onLogin={handleLogin} />
           ) : (
@@ -707,7 +697,7 @@ export default function App() {
                                   </td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.precio || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.nota || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.fecha || ""}</td>
+                                  <td className="px-3 py-2 border-b text-left">{formatoFecha(pedido.fecha)}</td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.vendedor || ""}</td>
                                   <td className="px-3 py-2 border-b text-center align-middle">
                                     <div className="flex justify-center items-center gap-2">
@@ -761,14 +751,15 @@ export default function App() {
                                 className="border rounded-lg px-3 py-2 text-base focus:outline-blue-400 shadow"
                                 style={{ minWidth: "120px", fontSize: "1rem", background: "white" }}
                               >
+                                <option value="ninguna">Ninguna</option>
                                 <option value="">Todas</option>
                                 {fechasUnicas.map(fecha => (
-                                  <option key={fecha} value={fecha}>{fecha}</option>
+                                  <option key={fecha} value={fecha}>{formatoFecha(fecha)}</option>
                                 ))}
                               </select>
                               <button
                                 type="button"
-                                onClick={() => setFiltroFecha("")}
+                                onClick={() => setFiltroFecha("ninguna")}
                                 className="ml-2 px-3 py-2 bg-slate-200 rounded-lg text-slate-700 font-semibold hover:bg-slate-300 transition"
                               >
                                 Limpiar

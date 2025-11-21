@@ -4,7 +4,6 @@ import * as XLSX from "xlsx";
 export default function Exportarexcel({ pedidos, tienda }) {
   const [showPopup, setShowPopup] = useState(false);
   const [fecha, setFecha] = useState("");
-
   const exportToExcel = () => {
     if (!fecha) {
       alert("Por favor selecciona una fecha.");
@@ -37,7 +36,6 @@ export default function Exportarexcel({ pedidos, tienda }) {
     setShowPopup(false);
     setFecha("");
   };
-
   return (
     <>
       <button
