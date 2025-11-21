@@ -4,6 +4,9 @@ import Login from "./Login";
 import Configuracion from "./Configuracion";
 import PedidoModal from "./PedidoModal";
 import Exportarexcel from "./Exportarexcel";
+import PedidosTable from "./PedidosTable";
+import Tiendas from "./Tiendas";
+import ConfirmarPedidoPopup from "./ConfirmarPedidoPopup";
 import {
   findUserByCredentials,
   getAllUsers,
@@ -20,53 +23,11 @@ import {
 } from "./firebase";
 import { getFirestore, collection, onSnapshot } from "firebase/firestore";
 
-const zoomIconStyles = "transition-transform duration-200 group-hover:scale-125";
-const IconDelete = () => (
-  <span className="group inline-block">
-    <svg className={`w-5 h-5 text-rose-500 ${zoomIconStyles}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-    </svg>
-  </span>
-);
-const IconEdit = () => (
-  <span className="group inline-block">
-    <svg className={`w-5 h-5 text-blue-500 ${zoomIconStyles}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
-    </svg>
-  </span>
-);
-const IconConfirm = () => (
-  <span className="group inline-block">
-    <svg className={`w-5 h-5 text-green-500 ${zoomIconStyles}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-    </svg>
-  </span>
-);
 const IconArrowLeft = () => (
   <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
   </svg>
 );
-
-function ConfirmPopup({ open, onClose, onAction }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[101] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-2xl shadow-2xl p-8 min-w-[300px] max-w-sm flex flex-col items-center animate-fadein">
-        <h3 className="text-xl font-bold mb-4 text-slate-800">Confirmar pedido</h3>
-        <p className="mb-6 text-slate-600">Selecciona una acción:</p>
-        <div className="flex flex-col gap-3 w-full">
-          <button className="w-full px-5 py-3 rounded-xl font-bold bg-green-700 text-white shadow-md hover:bg-green-800 transition" onClick={() => onAction("efectivo")}>Efectivo</button>
-          <button className="w-full px-5 py-3 rounded-xl font-bold bg-blue-700 text-white shadow-md hover:bg-blue-800 transition" onClick={() => onAction("transferencia")}>Transferencia</button>
-          <button className="w-full px-5 py-3 rounded-xl font-bold bg-yellow-600 text-yellow-950 shadow-md hover:bg-yellow-700 transition" onClick={() => onAction("reagendo")}>Reagendo</button>
-          <button className="w-full px-5 py-3 rounded-xl font-bold bg-red-700 text-white shadow-md hover:bg-red-800 transition" onClick={() => onAction("cancelado")}>Cancelado</button>
-        </div>
-        <button onClick={onClose} className="mt-6 px-5 py-2 bg-slate-200 rounded-xl text-slate-700 hover:bg-slate-300 font-semibold shadow">Cerrar</button>
-      </div>
-    </div>
-  );
-}
 
 function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
   const today = new Date();
@@ -90,67 +51,6 @@ function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function getFechaAgendadaManiana() {
-  const today = new Date();
-  let targetDate = new Date(today);
-  targetDate.setDate(today.getDate() + 1);
-  if (today.getDay() === 6) targetDate.setDate(today.getDate() + 2);
-  const yyyy = targetDate.getFullYear();
-  const mm = `${targetDate.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${targetDate.getDate()}`.padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function Tiendas({ stores, onSelectStore, isAdmin }) {
-  const [pedidosCounts, setPedidosCounts] = useState({});
-  const [deliveryLabel, setDeliveryLabel] = useState("Pedidos para mañana");
-  useEffect(() => {
-    const today = new Date();
-    let label = "Pedidos para mañana";
-    if (today.getDay() === 6) label = "Pedidos para el Lunes";
-    setDeliveryLabel(label);
-    const unsubscribes = [];
-    function subscribeRealtime() {
-      const db = getFirestore();
-      const fechaAgendada = getFechaAgendadaManiana();
-      stores.forEach(store => {
-        const ref = collection(db, "tiendas", store, "pedidos");
-        const unsubscribe = onSnapshot(ref, snap => {
-          let count = 0;
-          snap.forEach(doc => {
-            const data = doc.data();
-            if (data.fecha === fechaAgendada) count++;
-          });
-          setPedidosCounts(prev => ({ ...prev, [store]: count }));
-        });
-        unsubscribes.push(unsubscribe);
-      });
-    }
-    if (isAdmin && stores.length > 0) subscribeRealtime();
-    return () => {
-      unsubscribes.forEach(unsub => unsub());
-    };
-  }, [stores, isAdmin]);
-  return (
-    <section className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200 flex flex-col items-center text-center w-full mx-auto">
-      <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-6">Tiendas</h2>
-      <div className="flex flex-wrap gap-6 justify-center items-center">
-        {stores.map(store => (
-          <div key={store} className="bg-slate-50 shadow border px-6 py-5 rounded-xl flex flex-col items-center justify-center" style={{ minWidth: 200 }}>
-            <span className="font-bold text-lg mb-2">{store}</span>
-            {isAdmin && (
-              <span className="text-base text-slate-600 mb-3">
-                {deliveryLabel}: <b>{pedidosCounts[store] ?? 0}</b>
-              </span>
-            )}
-            <button className="mt-1 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold" onClick={() => onSelectStore(store)}>Ver pedidos</button>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -182,12 +82,14 @@ export default function App() {
   const [filtroFecha, setFiltroFecha] = useState("ninguna");
   const [editingIndex, setEditingIndex] = useState(null);
   const [confirmIdx, setConfirmIdx] = useState(null);
+
   useEffect(() => {
     const storedUsername = localStorage.getItem("sesion_usuario");
     if (storedUsername && !user) {
       setUser(storedUsername);
     }
   }, []);
+
   useEffect(() => {
     async function load() {
       try {
@@ -212,6 +114,7 @@ export default function App() {
     }
     load();
   }, [user]);
+
   useEffect(() => {
     let unsubscribe = null;
     if (selectedStore) {
@@ -223,6 +126,7 @@ export default function App() {
       if (unsubscribe) unsubscribe();
     };
   }, [selectedStore, showPedidoModal]);
+
   const handleLogin = async (username, password, rememberMe) => {
     const u = (username || "").trim();
     const p = password || "";
@@ -287,6 +191,7 @@ export default function App() {
       return { ok: false, message: "Error al autenticar. Revisa la consola." };
     }
   };
+
   const handleLogout = () => {
     setUser(null);
     setCurrentUserObj(null);
@@ -294,6 +199,7 @@ export default function App() {
     setSelectedStore(null);
     localStorage.removeItem("sesion_usuario");
   };
+
   const handleAddUser = async (newUser) => {
     if (!newUser || !newUser.nombre) return;
     try {
@@ -334,6 +240,7 @@ export default function App() {
       console.error("handleAddUser error:", err);
     }
   };
+
   const handleUpdateUser = async (updatedUser) => {
     if (!updatedUser) return;
     try {
@@ -397,6 +304,7 @@ export default function App() {
       console.error("handleUpdateUser error:", err);
     }
   };
+
   const handleAddStore = async (storeName) => {
     if (!storeName || !storeName.trim()) return;
     const s = storeName.trim();
@@ -408,11 +316,13 @@ export default function App() {
       console.error("handleAddStore error:", err);
     }
   };
+
   const handleSelectStore = async (storeName) => {
     if (!storeName) return;
     setSelectedStore(storeName);
     setView("store");
   };
+
   const handleAddPedido = async (pedido) => {
     if (editingIndex !== null) {
       const pedidoActual = pedidosDeEstaTienda[editingIndex];
@@ -432,6 +342,7 @@ export default function App() {
       }
     }
   };
+
   const handleEliminarPedido = async (pedidoId) => {
     if (!pedidoId || !selectedStore) return;
     try {
@@ -441,16 +352,19 @@ export default function App() {
       console.error("Error eliminando el pedido de Firestore:", err);
     }
   };
+
   const handleEditarPedido = (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setEditingIndex(idx);
     setShowPedidoModal(true);
   };
+
   const handleConfirmarPedido = async (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setConfirmIdx(idx);
     setShowConfirmPopup(true);
   };
+
   const handlePedidoAccion = async (accion) => {
     const pedido = pedidosDeEstaTienda[confirmIdx];
     if (!pedido || !selectedStore) {
@@ -458,7 +372,7 @@ export default function App() {
       setConfirmIdx(null);
       return;
     }
-    if (accion === "reagendo") {
+    if (accion === "reagendar") {
       setShowConfirmPopup(false);
       setShowReagendarPopup(true);
       setReagendarIdx(confirmIdx);
@@ -474,6 +388,7 @@ export default function App() {
       setConfirmIdx(null);
     }
   };
+
   const handleReagendarConfirm = async (nuevaFecha) => {
     const pedido = pedidosDeEstaTienda[reagendarIdx];
     if (!pedido || !selectedStore) {
@@ -483,7 +398,7 @@ export default function App() {
       return;
     }
     try {
-      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: "reagendo", fecha: nuevaFecha });
+      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: "reagendar", fecha: nuevaFecha });
       setShowReagendarPopup(false);
       setReagendarIdx(null);
       setConfirmIdx(null);
@@ -494,11 +409,13 @@ export default function App() {
       setConfirmIdx(null);
     }
   };
+
   const handleReagendarCancel = () => {
     setShowReagendarPopup(false);
     setReagendarIdx(null);
     setConfirmIdx(null);
   };
+
   const handleDeleteUser = async (id) => {
     try {
       await deleteUserFromFirestore(id);
@@ -512,6 +429,7 @@ export default function App() {
       console.error("Error eliminando el usuario de Firestore:", err);
     }
   };
+
   const handleDeleteStore = async (storeName) => {
     try {
       await deleteStoreFromFirestore(storeName);
@@ -526,26 +444,49 @@ export default function App() {
       console.error("Error eliminando la tienda de Firestore:", err);
     }
   };
+
   const isAdmin = currentUserObj?.rol === "admin" || user === "admin";
   const visibleStores = isAdmin
     ? stores
     : (currentUserObj?.stores?.length ? currentUserObj.stores : stores);
+
   const pedidosDeEstaTienda = Array.isArray(pedidosPorTienda[selectedStore])
     ? pedidosPorTienda[selectedStore]
     : [];
   const pedidosDeEstaTiendaOrdenados = [...pedidosDeEstaTienda].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
   const fechasUnicas = [...new Set(pedidosDeEstaTiendaOrdenados.map(p => p.fecha).filter(Boolean))].sort((a,b)=>new Date(b)-new Date(a));
-  const pedidosFiltrados = filtroFecha === "ninguna"
-    ? []
-    : filtroFecha === ""
-    ? pedidosDeEstaTiendaOrdenados
-    : pedidosDeEstaTiendaOrdenados.filter(p => p.fecha === filtroFecha);
+
+  let pedidosFiltrados = pedidosDeEstaTiendaOrdenados;
+  if (filtroFecha === "pendientes") {
+    pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
+      p => p.estado === "pendiente"
+    );
+  } else if (filtroFecha === "cancelado") {
+    pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
+      p => p.estado === "cancelado"
+    );
+  } else if (
+    filtroFecha &&
+    filtroFecha !== "ninguna" &&
+    filtroFecha !== "" &&
+    filtroFecha !== "pendientes" &&
+    filtroFecha !== "cancelado"
+  ) {
+    pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
+      p => p.fecha === filtroFecha
+    );
+  } else if (filtroFecha === "ninguna") {
+    pedidosFiltrados = [];
+  }
+
   const pedidoAEditar = editingIndex !== null ? pedidosDeEstaTienda[editingIndex] : undefined;
   const isAnyPopupOpen = showPedidoModal || showConfirmPopup || showReagendarPopup;
+
   function canEditDeleteConfirm(estado, isAdmin) {
     if (isAdmin) return true;
-    return estado === "reagendo" || estado === undefined || estado === "";
+    return estado === "reagendar" || estado === undefined || estado === "";
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col relative">
       {user && (
@@ -569,7 +510,7 @@ export default function App() {
         />
       )}
       {showConfirmPopup && (
-        <ConfirmPopup
+        <ConfirmarPedidoPopup
           open={showConfirmPopup}
           onClose={() => { setShowConfirmPopup(false); setConfirmIdx(null); }}
           onAction={handlePedidoAccion}
@@ -584,7 +525,7 @@ export default function App() {
         />
       )}
       <main className="flex-1 flex items-center justify-center pt-6 px-2 md:px-4">
-        <div className={`w-[98vw] flex justify-center`}>
+        <div className="w-full flex justify-center">
           {!user ? (
             <Login onLogin={handleLogin} />
           ) : (
@@ -601,7 +542,7 @@ export default function App() {
                   className="bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center text-center w-full mx-auto"
                   style={{
                     maxWidth: "1600px",
-                    width: "98vw",
+                    width: "97vw",
                     minHeight: "65vh",
                     margin: "0 auto",
                     display: "flex",
@@ -609,7 +550,7 @@ export default function App() {
                     justifyContent: "flex-start",
                     alignItems: "center",
                     padding: "2.5rem 1vw",
-                    position: "relative",
+                    position: "relative"
                   }}
                 >
                   <button
@@ -633,7 +574,7 @@ export default function App() {
                     style={{
                       minWidth: "200px",
                       maxWidth: "480px",
-                      width: "80%",
+                      width: "80%"
                     }}
                   >
                     Agregar Pedido
@@ -642,127 +583,25 @@ export default function App() {
                   <div className="w-full flex justify-end mb-2">
                     <Exportarexcel pedidos={pedidosDeEstaTiendaOrdenados} tienda={selectedStore} />
                   </div>
-                  <div style={{ width: "100%", minWidth: "1400px", maxWidth: "100%", overflowX: "auto" }}>
-                    <table className="min-w-full border border-slate-200 rounded-xl shadow bg-white" style={{ width: "100%", minWidth: "1400px", maxWidth: "100vw" }}>
-                      <thead>
-                        <tr className="bg-blue-50">
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Cliente</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Calle y número</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Colonia</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Municipio</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Código Postal</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Entre calles</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Teléfono</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Productos</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Precio</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Nota</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Fecha</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Vendedor</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-center">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pedidosFiltrados.length
-                          ? pedidosFiltrados.map((pedido) => {
-                              let colorFila = "";
-                              let colorNombre = "";
-                              if (pedido.estado === "efectivo") colorFila = "bg-green-700 text-white";
-                              if (pedido.estado === "transferencia") colorFila = "bg-blue-700 text-white";
-                              if (pedido.estado === "cancelado") colorFila = "bg-red-700 text-white";
-                              if (pedido.estado === "reagendo") colorNombre = "bg-yellow-400 text-yellow-900 font-bold rounded px-1";
-                              return (
-                                <tr key={pedido.id} className={`${colorFila}`}>
-                                  <td className="px-3 py-2 border-b text-left">
-                                    <span className={colorNombre}>{pedido.nombre || ""}</span>
-                                  </td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.calleNumero || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.colonia || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.municipio || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.codigoPostal || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.entreCalles || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.telefono || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">
-                                    {pedido.productos?.map((p, i) => (
-                                      <span key={i} style={{ whiteSpace: "nowrap" }}>
-                                        <span className="font-semibold">{p.cantidad}</span> <span>{p.producto}</span>
-                                        {i < pedido.productos.length - 1 ? ", " : ""}
-                                      </span>
-                                    ))}
-                                  </td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.precio || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.nota || ""}</td>
-                                  <td className="px-3 py-2 border-b text-left">{formatoFecha(pedido.fecha)}</td>
-                                  <td className="px-3 py-2 border-b text-left">{pedido.vendedor || ""}</td>
-                                  <td className="px-3 py-2 border-b text-center align-middle">
-                                    <div className="flex justify-center items-center gap-2">
-                                      {canEditDeleteConfirm(pedido.estado, isAdmin) && (
-                                        <>
-                                          <button
-                                            title="Editar"
-                                            className="focus:outline-none group"
-                                            onClick={() => handleEditarPedido(pedido.id)}
-                                            disabled={isAnyPopupOpen}
-                                          >
-                                            <IconEdit />
-                                          </button>
-                                          <button
-                                            title="Eliminar"
-                                            className="focus:outline-none group"
-                                            onClick={() => handleEliminarPedido(pedido.id)}
-                                            disabled={isAnyPopupOpen}
-                                          >
-                                            <IconDelete />
-                                          </button>
-                                          <button
-                                            title="Confirmar"
-                                            className="focus:outline-none group"
-                                            onClick={() => handleConfirmarPedido(pedido.id)}
-                                            disabled={isAnyPopupOpen}
-                                          >
-                                            <IconConfirm />
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          : (
-                            <tr>
-                              <td className="px-3 py-2 border-b text-left" colSpan={13}></td>
-                            </tr>
-                          )
-                        }
-                        <tr>
-                          <td colSpan={13} className="px-3 py-2 border-b text-left align-middle">
-                            <div className="flex items-center gap-2">
-                              <label htmlFor="filtroFecha" className="text-slate-700 text-base font-medium mr-2">Filtrar por fecha:</label>
-                              <select
-                                id="filtroFecha"
-                                value={filtroFecha}
-                                onChange={e => setFiltroFecha(e.target.value)}
-                                className="border rounded-lg px-3 py-2 text-base focus:outline-blue-400 shadow"
-                                style={{ minWidth: "120px", fontSize: "1rem", background: "white" }}
-                              >
-                                <option value="ninguna">Ninguna</option>
-                                <option value="">Todas</option>
-                                {fechasUnicas.map(fecha => (
-                                  <option key={fecha} value={fecha}>{formatoFecha(fecha)}</option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => setFiltroFecha("ninguna")}
-                                className="ml-2 px-3 py-2 bg-slate-200 rounded-lg text-slate-700 font-semibold hover:bg-slate-300 transition"
-                              >
-                                Limpiar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <div
+                    className="PedidosTableContainer w-full"
+                    style={{
+                      width: "100%",
+                      marginBottom: 22
+                    }}>
+                    <PedidosTable
+                      pedidos={pedidosFiltrados}
+                      pedidoAEditar={pedidoAEditar}
+                      canEditDeleteConfirm={canEditDeleteConfirm}
+                      handleEditarPedido={handleEditarPedido}
+                      handleEliminarPedido={handleEliminarPedido}
+                      handleConfirmarPedido={handleConfirmarPedido}
+                      isAdmin={isAdmin}
+                      isAnyPopupOpen={isAnyPopupOpen}
+                      fechasUnicas={fechasUnicas}
+                      filtroFecha={filtroFecha}
+                      setFiltroFecha={setFiltroFecha}
+                    />
                   </div>
                 </section>
               )}
