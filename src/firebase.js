@@ -8,7 +8,8 @@ import {
   updateDoc,
   query,
   where,
-  deleteDoc
+  deleteDoc,
+  onSnapshot // AGREGADO para tiempo real
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -99,6 +100,25 @@ export async function deleteStoreFromFirestore(storeName) {
 }
 
 // Pedidos
+
+// ---- FUNCIONES EN TIEMPO REAL ----
+export function onPedidosByTiendaRealtime(storeName, callback) {
+  const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
+  // Devuelve la función para desuscribirse
+  return onSnapshot(pedidosCol, (snap) => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
+
+export function onPedidosCounterByTiendaRealtime(storeName, callback) {
+  // Contador reactivo en tiempo real
+  const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
+  return onSnapshot(pedidosCol, (snap) => {
+    callback(snap.size);
+  });
+}
+// ---- FIN TIEMPO REAL ----
+
 export async function addPedidoToTienda(storeName, pedido) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
   await addDoc(pedidosCol, pedido);

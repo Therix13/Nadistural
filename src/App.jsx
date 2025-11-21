@@ -12,13 +12,13 @@ import {
   updateUserInFirestore,
   addStoreToFirestore,
   addPedidoToTienda,
-  getPedidosByTienda,
-  getPedidosCounterByTiendaForNextDelivery,
   deleteUserFromFirestore,
   deleteStoreFromFirestore,
   deletePedidoFromTienda,
-  updatePedidoInTienda
+  updatePedidoInTienda,
+  onPedidosByTiendaRealtime
 } from "./firebase";
+import { getFirestore, collection, onSnapshot } from "firebase/firestore";
 
 const zoomIconStyles = "transition-transform duration-200 group-hover:scale-125";
 const IconDelete = () => (
@@ -72,11 +72,9 @@ function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
   const today = new Date();
   const minDate = today.toISOString().split("T")[0];
   const [nuevaFecha, setNuevaFecha] = useState(minDate);
-
   useEffect(() => {
     if (open) setNuevaFecha(minDate);
   }, [open, minDate]);
-
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[102] flex items-center justify-center">
@@ -95,26 +93,47 @@ function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
   );
 }
 
+function getFechaAgendadaManiana() {
+  const today = new Date();
+  let targetDate = new Date(today);
+  targetDate.setDate(today.getDate() + 1);
+  if (today.getDay() === 6) targetDate.setDate(today.getDate() + 2);
+  const yyyy = targetDate.getFullYear();
+  const mm = `${targetDate.getMonth() + 1}`.padStart(2, "0");
+  const dd = `${targetDate.getDate()}`.padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function Tiendas({ stores, onSelectStore, isAdmin }) {
   const [pedidosCounts, setPedidosCounts] = useState({});
   const [deliveryLabel, setDeliveryLabel] = useState("Pedidos para mañana");
-
   useEffect(() => {
     const today = new Date();
     let label = "Pedidos para mañana";
     if (today.getDay() === 6) label = "Pedidos para el Lunes";
     setDeliveryLabel(label);
-
-    async function fetchCounters() {
-      const counts = {};
-      for (const store of stores) {
-        counts[store] = await getPedidosCounterByTiendaForNextDelivery(store);
-      }
-      setPedidosCounts(counts);
+    const unsubscribes = [];
+    function subscribeRealtime() {
+      const db = getFirestore();
+      const fechaAgendada = getFechaAgendadaManiana();
+      stores.forEach(store => {
+        const ref = collection(db, "tiendas", store, "pedidos");
+        const unsubscribe = onSnapshot(ref, snap => {
+          let count = 0;
+          snap.forEach(doc => {
+            const data = doc.data();
+            if (data.fecha === fechaAgendada) count++;
+          });
+          setPedidosCounts(prev => ({ ...prev, [store]: count }));
+        });
+        unsubscribes.push(unsubscribe);
+      });
     }
-    if (stores && stores.length > 0) fetchCounters();
-  }, [stores]);
-
+    if (isAdmin && stores.length > 0) subscribeRealtime();
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [stores, isAdmin]);
   return (
     <section className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200 flex flex-col items-center text-center w-full mx-auto">
       <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-6">Tiendas</h2>
@@ -122,28 +141,17 @@ function Tiendas({ stores, onSelectStore, isAdmin }) {
         {stores.map(store => (
           <div key={store} className="bg-slate-50 shadow border px-6 py-5 rounded-xl flex flex-col items-center justify-center" style={{ minWidth: 200 }}>
             <span className="font-bold text-lg mb-2">{store}</span>
-            <span className="text-base text-slate-600 mb-3">
-              {deliveryLabel}: <b>{pedidosCounts[store] ?? 0}</b>
-            </span>
+            {isAdmin && (
+              <span className="text-base text-slate-600 mb-3">
+                {deliveryLabel}: <b>{pedidosCounts[store] ?? 0}</b>
+              </span>
+            )}
             <button className="mt-1 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold" onClick={() => onSelectStore(store)}>Ver pedidos</button>
           </div>
         ))}
       </div>
     </section>
   );
-}
-
-function getFechaAgendadaHoy() {
-  const today = new Date();
-  let targetDate = new Date(today);
-  targetDate.setDate(today.getDate() + 1);
-  if (today.getDay() === 6) {
-    targetDate.setDate(today.getDate() + 2);
-  }
-  const yyyy = targetDate.getFullYear();
-  const mm = `${targetDate.getMonth() + 1}`.padStart(2, "0");
-  const dd = `${targetDate.getDate()}`.padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 function formatoFecha(fechaString) {
@@ -175,6 +183,12 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState(null);
   const [confirmIdx, setConfirmIdx] = useState(null);
   useEffect(() => {
+    const storedUsername = localStorage.getItem("sesion_usuario");
+    if (storedUsername && !user) {
+      setUser(storedUsername);
+    }
+  }, []);
+  useEffect(() => {
     async function load() {
       try {
         const uDocs = await getAllUsers();
@@ -199,19 +213,17 @@ export default function App() {
     load();
   }, [user]);
   useEffect(() => {
-    async function cargarPedidosTienda() {
-      if (selectedStore) {
-        try {
-          const pedidos = await getPedidosByTienda(selectedStore);
-          setPedidosPorTienda((prev) => ({ ...prev, [selectedStore]: pedidos }));
-        } catch (err) {
-          console.error("Error leyendo pedidos de Firestore:", err);
-        }
-      }
+    let unsubscribe = null;
+    if (selectedStore) {
+      unsubscribe = onPedidosByTiendaRealtime(selectedStore, (pedidos) => {
+        setPedidosPorTienda((prev) => ({ ...prev, [selectedStore]: pedidos }));
+      });
     }
-    cargarPedidosTienda();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [selectedStore, showPedidoModal]);
-  const handleLogin = async (username, password) => {
+  const handleLogin = async (username, password, rememberMe) => {
     const u = (username || "").trim();
     const p = password || "";
     if (!u || !p) {
@@ -255,12 +267,18 @@ export default function App() {
             },
           ];
         });
+        if (rememberMe) {
+          localStorage.setItem("sesion_usuario", u);
+        }
         return { ok: true };
       }
       if (u === "admin" && p === "admin") {
         setUser("admin");
         setCurrentUserObj({ id: null, nombre: "admin", rol: "admin", stores: [] });
         setView("inicio");
+        if (rememberMe) {
+          localStorage.setItem("sesion_usuario", u);
+        }
         return { ok: true };
       }
       return { ok: false, message: "Usuario o contraseña incorrectos." };
@@ -274,6 +292,7 @@ export default function App() {
     setCurrentUserObj(null);
     setView("inicio");
     setSelectedStore(null);
+    localStorage.removeItem("sesion_usuario");
   };
   const handleAddUser = async (newUser) => {
     if (!newUser || !newUser.nombre) return;
@@ -399,11 +418,6 @@ export default function App() {
       const pedidoActual = pedidosDeEstaTienda[editingIndex];
       try {
         await updatePedidoInTienda(selectedStore, pedidoActual.id, { ...pedido, vendedor: user });
-        setPedidosPorTienda((prev) => {
-          const pedidos = [...(prev[selectedStore] || [])];
-          pedidos[editingIndex] = { id: pedidoActual.id, ...pedido, vendedor: user };
-          return { ...prev, [selectedStore]: pedidos };
-        });
         setShowPedidoModal(false);
         setEditingIndex(null);
       } catch (err) {
@@ -419,17 +433,10 @@ export default function App() {
     }
   };
   const handleEliminarPedido = async (pedidoId) => {
-    const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
-    const pedido = pedidosDeEstaTienda[idx];
-    if (!pedido || !selectedStore) return;
+    if (!pedidoId || !selectedStore) return;
     try {
-      await deletePedidoFromTienda(selectedStore, pedido.id);
-      setPedidosPorTienda((prev) => {
-        const pedidos = [...(prev[selectedStore] || [])];
-        pedidos.splice(idx, 1);
-        return { ...prev, [selectedStore]: pedidos };
-      });
-      if (editingIndex === idx) setEditingIndex(null);
+      await deletePedidoFromTienda(selectedStore, pedidoId);
+      setEditingIndex(null);
     } catch (err) {
       console.error("Error eliminando el pedido de Firestore:", err);
     }
@@ -459,13 +466,6 @@ export default function App() {
     }
     try {
       await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: accion });
-      setPedidosPorTienda((prev) => {
-        const pedidos = [...(prev[selectedStore] || [])];
-        if (pedidos[confirmIdx]) {
-          pedidos[confirmIdx] = { ...pedidos[confirmIdx], estado: accion };
-        }
-        return { ...prev, [selectedStore]: pedidos };
-      });
       setShowConfirmPopup(false);
       setConfirmIdx(null);
     } catch (err) {
@@ -484,17 +484,6 @@ export default function App() {
     }
     try {
       await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: "reagendo", fecha: nuevaFecha });
-      setPedidosPorTienda((prev) => {
-        const pedidos = [...(prev[selectedStore] || [])];
-        if (pedidos[reagendarIdx]) {
-          pedidos[reagendarIdx] = {
-            ...pedidos[reagendarIdx],
-            estado: "reagendo",
-            fecha: nuevaFecha,
-          };
-        }
-        return { ...prev, [selectedStore]: pedidos };
-      });
       setShowReagendarPopup(false);
       setReagendarIdx(null);
       setConfirmIdx(null);
@@ -517,6 +506,7 @@ export default function App() {
       if (currentUserObj?.id === id) {
         setUser(null);
         setCurrentUserObj(null);
+        localStorage.removeItem("sesion_usuario");
       }
     } catch (err) {
       console.error("Error eliminando el usuario de Firestore:", err);
@@ -594,7 +584,7 @@ export default function App() {
         />
       )}
       <main className="flex-1 flex items-center justify-center pt-6 px-2 md:px-4">
-        <div className={`w-[90vw] flex justify-center`}>
+        <div className={`w-[98vw] flex justify-center`}>
           {!user ? (
             <Login onLogin={handleLogin} />
           ) : (
@@ -610,15 +600,15 @@ export default function App() {
                 <section
                   className="bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center text-center w-full mx-auto"
                   style={{
-                    maxWidth: "1200px",
-                    width: "100%",
+                    maxWidth: "1600px",
+                    width: "98vw",
                     minHeight: "65vh",
                     margin: "0 auto",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "flex-start",
                     alignItems: "center",
-                    padding: "2.5rem 2vw",
+                    padding: "2.5rem 1vw",
                     position: "relative",
                   }}
                 >
@@ -652,12 +642,15 @@ export default function App() {
                   <div className="w-full flex justify-end mb-2">
                     <Exportarexcel pedidos={pedidosDeEstaTiendaOrdenados} tienda={selectedStore} />
                   </div>
-                  <div style={{ width: "100%", minWidth: "700px", maxWidth: "100%", overflowX: "auto" }}>
-                    <table className="min-w-full border border-slate-200 rounded-xl shadow bg-white" style={{ width: "100%", minWidth: "700px", maxWidth: "100vw" }}>
+                  <div style={{ width: "100%", minWidth: "1400px", maxWidth: "100%", overflowX: "auto" }}>
+                    <table className="min-w-full border border-slate-200 rounded-xl shadow bg-white" style={{ width: "100%", minWidth: "1400px", maxWidth: "100vw" }}>
                       <thead>
                         <tr className="bg-blue-50">
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Cliente</th>
-                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Dirección</th>
+                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Calle y número</th>
+                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Colonia</th>
+                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Municipio</th>
+                          <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Código Postal</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Entre calles</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Teléfono</th>
                           <th className="px-3 py-2 border-b font-bold text-slate-700 text-xs text-left">Productos</th>
@@ -682,9 +675,10 @@ export default function App() {
                                   <td className="px-3 py-2 border-b text-left">
                                     <span className={colorNombre}>{pedido.nombre || ""}</span>
                                   </td>
-                                  <td className="px-3 py-2 border-b text-left">
-                                    {[pedido.calleNumero, pedido.colonia, pedido.municipio, pedido.codigoPostal].filter(Boolean).join(", ")}
-                                  </td>
+                                  <td className="px-3 py-2 border-b text-left">{pedido.calleNumero || ""}</td>
+                                  <td className="px-3 py-2 border-b text-left">{pedido.colonia || ""}</td>
+                                  <td className="px-3 py-2 border-b text-left">{pedido.municipio || ""}</td>
+                                  <td className="px-3 py-2 border-b text-left">{pedido.codigoPostal || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.entreCalles || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">{pedido.telefono || ""}</td>
                                   <td className="px-3 py-2 border-b text-left">
@@ -736,12 +730,12 @@ export default function App() {
                             })
                           : (
                             <tr>
-                              <td className="px-3 py-2 border-b text-left" colSpan={10}></td>
+                              <td className="px-3 py-2 border-b text-left" colSpan={13}></td>
                             </tr>
                           )
                         }
                         <tr>
-                          <td colSpan={10} className="px-3 py-2 border-b text-left align-middle">
+                          <td colSpan={13} className="px-3 py-2 border-b text-left align-middle">
                             <div className="flex items-center gap-2">
                               <label htmlFor="filtroFecha" className="text-slate-700 text-base font-medium mr-2">Filtrar por fecha:</label>
                               <select

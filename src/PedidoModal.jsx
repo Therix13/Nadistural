@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from "react";
 
 export default function PedidoModal({ open, onClose, onSubmit, initialValues }) {
-  const getTomorrow = () => {
-    const today = new Date();
-    let tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    if (today.getDay() === 6) {
-      tomorrow.setDate(today.getDate() + 2);
-    }
+  function getTomorrow() {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     return tomorrow.toISOString().split("T")[0];
-  };
+  }
+
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [entreCalles, setEntreCalles] = useState("");
@@ -22,6 +20,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
   const [municipio, setMunicipio] = useState("");
   const [codigoPostal, setCodigoPostal] = useState("");
   const [error, setError] = useState("");
+
   useEffect(() => {
     if (initialValues) {
       setNombre(initialValues.nombre || "");
@@ -55,13 +54,17 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
       setError("");
     }
   }, [initialValues, open]);
+
   if (!open) return null;
+
   const handleAddProducto = () => {
     setProductos([...productos, { producto: "", cantidad: 1 }]);
   };
+
   const handleRemoveProducto = (idx) => {
     setProductos(productos.filter((_, i) => i !== idx));
   };
+
   const handleProductoChange = (idx, field, value) => {
     setProductos((prev) =>
       prev.map((p, i) =>
@@ -69,6 +72,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
       )
     );
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
@@ -87,12 +91,10 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
     };
     onSubmit(nuevoPedido);
   };
+
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div
-        className="absolute inset-0"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0" onClick={onClose} />
       <div className="relative flex flex-col items-center justify-center w-full h-full">
         <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
           style={{
