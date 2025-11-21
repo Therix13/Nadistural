@@ -1,29 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-// Ordena primero por fecha (descendente), luego pone pendientes/cancelados al final
-function sortPedidosByFechaAndEstado(pedidos) {
-  const estadosFinales = ["pendiente", "cancelado"];
-  return [...pedidos].sort((a, b) => {
-    const aFinal = estadosFinales.includes(a.estado);
-    const bFinal = estadosFinales.includes(b.estado);
-
-    if (!aFinal && !bFinal) {
-      // Ambos NO son finales: ordenar fechas descendente
-      return new Date(b.fecha) - new Date(a.fecha);
-    }
-    if (aFinal && !bFinal) return 1; // a es final, b no: va después
-    if (!aFinal && bFinal) return -1; // b es final, a no: va antes
-    // Ambos son finales: ordenar fechas descendente igual
-    return new Date(b.fecha) - new Date(a.fecha);
-  });
-}
-
-// Dropdown de filtro scrollable (máx 10 opciones visibles)
-function FiltroFechaDropdown({
-  opciones, // Array de { value, label }
-  value,
-  onChange
-}) {
+function FiltroFechaDropdown({ opciones, value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const refDropdown = useRef(null);
 
@@ -82,6 +59,20 @@ function FiltroFechaDropdown({
   );
 }
 
+function sortPedidosByFechaAndEstado(pedidos) {
+  const estadosFinales = ["pendiente", "cancelado"];
+  return [...pedidos].sort((a, b) => {
+    const aFinal = estadosFinales.includes(a.estado);
+    const bFinal = estadosFinales.includes(b.estado);
+    if (!aFinal && !bFinal) {
+      return new Date(b.fecha) - new Date(a.fecha);
+    }
+    if (aFinal && !bFinal) return 1;
+    if (!aFinal && bFinal) return -1;
+    return new Date(b.fecha) - new Date(a.fecha);
+  });
+}
+
 export default function PedidosTable({
   pedidos,
   pedidoAEditar,
@@ -96,7 +87,6 @@ export default function PedidosTable({
   setFiltroFecha,
   ExportComponent
 }) {
-  // Opciones para el filtro scrollable
   const opcionesFiltro = [
     { value: "ninguna", label: "Ninguna" },
     { value: "", label: "Todas" },
@@ -105,7 +95,6 @@ export default function PedidosTable({
     ...fechasUnicas.map((fecha) => ({ value: fecha, label: fecha })),
   ];
 
-  // Ordenar los pedidos como solicita el usuario
   const pedidosOrdenados = sortPedidosByFechaAndEstado(pedidos);
 
   return (
@@ -120,10 +109,9 @@ export default function PedidosTable({
         boxShadow: "0 2px 12px 0 rgba(0,0,0,0.09)",
         display: "flex",
         flexDirection: "column",
-        padding: "32px 0 0 0",
+        padding: "32px 0 0 0"
       }}
     >
-      {/* Filtrado, exportar, alineados */}
       <div
         style={{
           display: "flex",
@@ -151,189 +139,159 @@ export default function PedidosTable({
         <div>{ExportComponent}</div>
       </div>
 
-      <table
-        className="w-full rounded-xl bg-white text-xs sm:text-sm md:text-base lg:text-base"
-        style={{
-          tableLayout: "fixed",
-          width: "100%",
-          minWidth: "900px",
-          boxSizing: "border-box",
-        }}
-      >
-        <thead>
-          <tr className="bg-blue-50">
-            <th style={{ width: "120px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Cliente
-            </th>
-            <th style={{ width: "160px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Calle y número
-            </th>
-            <th style={{ width: "100px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Colonia
-            </th>
-            <th style={{ width: "90px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Municipio
-            </th>
-            <th style={{ width: "70px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Código Postal
-            </th>
-            <th style={{ width: "135px" }} className="px-2 py-2 font-bold text-slate-700 text-left">
-              Entre calles
-            </th>
-            <th style={{ width: "90px" }} className="px-2 py-2 text-left">
-              Teléfono
-            </th>
-            <th style={{ width: "135px" }} className="px-2 py-2 text-left">
-              Productos
-            </th>
-            <th style={{ width: "60px" }} className="px-2 py-2 text-left">
-              Precio
-            </th>
-            <th style={{ width: "170px" }} className="px-2 py-2 text-left">
-              Nota
-            </th>
-            <th style={{ width: "85px" }} className="px-2 py-2 text-left">
-              Fecha
-            </th>
-            <th style={{ width: "85px" }} className="px-2 py-2 text-left">
-              Vendedor
-            </th>
-            <th style={{ width: "92px" }} className="px-2 py-2 text-center align-middle">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {pedidosOrdenados.length ? (
-            pedidosOrdenados.map((pedido, i) => {
-              let colorNombre = "";
-              if (pedido.estado === "reagendar") colorNombre = "bg-gray-400 text-gray-900 font-bold rounded px-1";
-
-              const alternaFila =
-                i % 2 === 0
-                  ? { background: "#fff" }
-                  : { background: "linear-gradient(90deg, #f6f7f9 0%, #e5e7eb 100%)" };
-
-              // Colores por estado
-              const tdClass =
-                pedido.estado === "efectivo"
-                  ? "bg-green-600 text-black"
-                  : pedido.estado === "transferencia"
-                  ? "bg-blue-600 text-white"
-                  : pedido.estado === "pendiente"
-                  ? "bg-yellow-500 text-black"
-                  : pedido.estado === "cancelado"
-                  ? "bg-red-600 text-white"
-                  : pedido.estado === "reagendar"
-                  ? "bg-gray-400 text-gray-900"
-                  : "";
-
-              return (
-                <React.Fragment key={pedido.id || i}>
-                  <tr style={alternaFila}>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.nombre || ""}>
-                      <span className={colorNombre}>{pedido.nombre || ""}</span>
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.calleNumero || ""}>
-                      {pedido.calleNumero || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.colonia || ""}>
-                      {pedido.colonia || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.municipio || ""}>
-                      {pedido.municipio || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.codigoPostal || ""}>
-                      {pedido.codigoPostal || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.entreCalles || ""}>
-                      {pedido.entreCalles || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.telefono || ""}>
-                      {pedido.telefono || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.productos?.map(p => `${p.cantidad} ${p.producto}`).join(", ")}>
-                      {pedido.productos?.map((p, ix) => (
-                        <span key={ix}>
-                          <span className="font-semibold">{p.cantidad}</span>{" "}
-                          <span>{p.producto}</span>
-                          {ix < pedido.productos.length - 1 ? ", " : ""}
-                        </span>
-                      ))}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.precio || ""}>
-                      {pedido.precio || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.nota || ""}>
-                      {pedido.nota || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.fecha || ""}>
-                      {pedido.fecha || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-left align-top ${tdClass}`} title={pedido.vendedor || ""}>
-                      {pedido.vendedor || ""}
-                    </td>
-                    <td className={`px-2 py-2 text-center align-middle ${tdClass}`}>
-                      <div className="flex justify-center items-center gap-1 md:gap-2">
-                        {canEditDeleteConfirm(pedido.estado, isAdmin) && (
-                          <>
-                            <button
-                              title="Editar"
-                              className="focus:outline-none group"
-                              onClick={() => handleEditarPedido(pedido.id)}
-                              disabled={isAnyPopupOpen}
-                            >
-                              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
-                              </svg>
-                            </button>
-                            <button
-                              title="Eliminar"
-                              className="focus:outline-none group"
-                              onClick={() => handleEliminarPedido(pedido.id)}
-                              disabled={isAnyPopupOpen}
-                            >
-                              <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                              </svg>
-                            </button>
-                            <button
-                              title="Confirmar"
-                              className="focus:outline-none group"
-                              onClick={() => handleConfirmarPedido(pedido.id)}
-                              disabled={isAnyPopupOpen}
-                            >
-                              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                              </svg>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  {/* RAYA NEGRA EN SEPARACIÓN */}
-                  <tr>
-                    <td colSpan={13} style={{
-                      height: "2px",
-                      background: "#222",
-                      border: "none",
-                      padding: 0,
-                      margin: 0
-                    }}></td>
-                  </tr>
-                </React.Fragment>
-              );
-            })
-          ) : (
-            <tr>
-              <td className="px-2 py-2 text-left align-top" colSpan={13}>
-                No hay pedidos que mostrar
-              </td>
+      <div className="w-full overflow-x-auto" style={{ borderRadius: 16 }}>
+        <table
+          className="w-full rounded-xl bg-white"
+          style={{
+            minWidth: 900,
+            fontSize: "clamp(11px, 2vw, 1rem)"
+          }}
+        >
+          <thead>
+            <tr className="bg-blue-50">
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Cliente</th>
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Calle y número</th>
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Colonia</th>
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Municipio</th>
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Código Postal</th>
+              <th className="px-2 py-2 font-bold text-slate-700 text-left whitespace-nowrap">Entre calles</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Teléfono</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Productos</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Precio</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Nota</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Fecha</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">Vendedor</th>
+              <th className="px-2 py-2 text-center align-middle whitespace-nowrap">Acciones</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {pedidosOrdenados.length ? (
+              pedidosOrdenados.map((pedido, i) => {
+                let colorNombre = "";
+                if (pedido.estado === "reagendar") colorNombre = "bg-gray-400 text-gray-900 font-bold rounded px-1";
+                const alternaFila =
+                  i % 2 === 0
+                    ? { background: "#fff" }
+                    : { background: "linear-gradient(90deg, #f6f7f9 0%, #e5e7eb 100%)" };
+                const tdClass =
+                  pedido.estado === "efectivo"
+                    ? "bg-green-600 text-black"
+                    : pedido.estado === "transferencia"
+                    ? "bg-blue-600 text-white"
+                    : pedido.estado === "pendiente"
+                    ? "bg-yellow-500 text-black"
+                    : pedido.estado === "cancelado"
+                    ? "bg-red-600 text-white"
+                    : pedido.estado === "reagendar"
+                    ? "bg-gray-400 text-gray-900"
+                    : "";
+
+                return (
+                  <React.Fragment key={pedido.id || i}>
+                    <tr style={alternaFila}>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.nombre || ""}>
+                        <span className={colorNombre}>{pedido.nombre || ""}</span>
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.calleNumero || ""}>
+                        {pedido.calleNumero || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.colonia || ""}>
+                        {pedido.colonia || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.municipio || ""}>
+                        {pedido.municipio || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.codigoPostal || ""}>
+                        {pedido.codigoPostal || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.entreCalles || ""}>
+                        {pedido.entreCalles || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.telefono || ""}>
+                        {pedido.telefono || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.productos?.map(p => `${p.cantidad} ${p.producto}`).join(", ")}>
+                        {pedido.productos?.map((p, ix) => (
+                          <span key={ix}>
+                            <span className="font-semibold">{p.cantidad}</span>{" "}
+                            <span>{p.producto}</span>
+                            {ix < pedido.productos.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.precio || ""}>
+                        {pedido.precio || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.nota || ""}>
+                        {pedido.nota || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.fecha || ""}>
+                        {pedido.fecha || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-left align-top ${tdClass} whitespace-nowrap`} title={pedido.vendedor || ""}>
+                        {pedido.vendedor || ""}
+                      </td>
+                      <td className={`px-2 py-2 text-center align-middle ${tdClass} whitespace-nowrap`}>
+                        <div className="flex justify-center items-center gap-1 md:gap-2">
+                          {canEditDeleteConfirm(pedido.estado, isAdmin) && (
+                            <>
+                              <button
+                                title="Editar"
+                                className="focus:outline-none group"
+                                onClick={() => handleEditarPedido(pedido.id)}
+                                disabled={isAnyPopupOpen}
+                              >
+                                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
+                                </svg>
+                              </button>
+                              <button
+                                title="Eliminar"
+                                className="focus:outline-none group"
+                                onClick={() => handleEliminarPedido(pedido.id)}
+                                disabled={isAnyPopupOpen}
+                              >
+                                <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                              </button>
+                              <button
+                                title="Confirmar"
+                                className="focus:outline-none group"
+                                onClick={() => handleConfirmarPedido(pedido.id)}
+                                disabled={isAnyPopupOpen}
+                              >
+                                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={13} style={{
+                        height: "2px",
+                        background: "#222",
+                        border: "none",
+                        padding: 0,
+                        margin: 0
+                      }}></td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              <tr>
+                <td className="px-2 py-2 text-left align-top" colSpan={13}>
+                  No hay pedidos que mostrar
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
