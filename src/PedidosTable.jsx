@@ -234,7 +234,7 @@ export default function PedidosTable({
                                   onClick={() => handleConfirmarPedido(pedido.id)}
                                   disabled={isAnyPopupOpen}
                                 >
-                                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <svg className="w-6 h-6 rounded-full text-green-700 transition bg-green-100 hover:bg-green-200 p-1 shadow" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
                                   </svg>
                                 </button>
@@ -302,36 +302,39 @@ export default function PedidosTable({
                       </span>
                     </div>
                   ))}
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 justify-center">
                     {canEditDeleteConfirm(pedido.estado, isAdmin) && (
                       <>
                         <button
                           title="Editar"
-                          className="focus:outline-none group"
+                          className="focus:outline-none group rounded-full bg-blue-50 hover:bg-blue-100 transition shadow"
+                          style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}
                           onClick={() => handleEditarPedido(pedido.id)}
                           disabled={isAnyPopupOpen}
                         >
-                          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
                           </svg>
                         </button>
                         <button
                           title="Eliminar"
-                          className="focus:outline-none group"
+                          className="focus:outline-none group rounded-full bg-rose-50 hover:bg-rose-200 transition shadow"
+                          style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}
                           onClick={() => handleEliminarPedido(pedido.id)}
                           disabled={isAnyPopupOpen}
                         >
-                          <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <svg className="w-7 h-7 text-rose-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                           </svg>
                         </button>
                         <button
                           title="Confirmar"
-                          className="focus:outline-none group"
+                          className="focus:outline-none group rounded-full bg-green-100 hover:bg-green-200 active:bg-green-300 transition shadow"
+                          style={{ width: 54, height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}
                           onClick={() => handleConfirmarPedido(pedido.id)}
                           disabled={isAnyPopupOpen}
                         >
-                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <svg className="w-9 h-9 text-green-700 transition" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
                           </svg>
                         </button>
