@@ -22,7 +22,7 @@ import {
   updatePedidoInTienda,
   onPedidosByTiendaRealtime
 } from "./firebase";
-import { getFirestore, collection, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, getDocs, onSnapshot } from "firebase/firestore";
 
 const IconArrowLeft = () => (
   <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -83,6 +83,7 @@ export default function App() {
   const [filtroFecha, setFiltroFecha] = useState("ninguna");
   const [editingIndex, setEditingIndex] = useState(null);
   const [confirmIdx, setConfirmIdx] = useState(null);
+  const [productosTienda, setProductosTienda] = useState([]);
 
   useEffect(() => {
     const storedUsername = localStorage.getItem("sesion_usuario");
@@ -126,6 +127,22 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
+  }, [selectedStore, showPedidoModal]);
+
+  useEffect(() => {
+    async function cargarProductosTienda() {
+      if (!selectedStore) {
+        setProductosTienda([]);
+        return;
+      }
+      const db = getFirestore();
+      const ref = collection(db, "Inventario", selectedStore, "PRODUCTOS");
+      const snap = await getDocs(ref);
+      setProductosTienda(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    if (showPedidoModal) {
+      cargarProductosTienda();
+    }
   }, [selectedStore, showPedidoModal]);
 
   const handleLogin = async (username, password, rememberMe) => {
@@ -508,6 +525,7 @@ export default function App() {
           onClose={() => { setShowPedidoModal(false); setEditingIndex(null); }}
           onSubmit={handleAddPedido}
           initialValues={pedidoAEditar || undefined}
+          productosTienda={productosTienda}
         />
       )}
       {showConfirmPopup && (

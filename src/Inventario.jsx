@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getFirestore, collection, setDoc, doc, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
-
-// Función normalizar ID para Firestore
-function normalizarTexto(texto) {
-  return texto
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9_-]/g, '')
-    .replace(/\s+/g, '')
-    .toLowerCase();
-}
+import PedidoModal from "./PedidoModal";
 
 export default function Inventario({ open, onClose, tienda, user }) {
   const [zoom, setZoom] = useState(open);
@@ -17,9 +9,7 @@ export default function Inventario({ open, onClose, tienda, user }) {
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevaCantidad, setNuevaCantidad] = useState('');
   const [guardando, setGuardando] = useState(false);
-
-  // Bloque edición/eliminación (integrado al modal principal)
-  const [modoEdicion, setModoEdicion] = useState(null); // {producto: {...}, accion: 'menu' | 'editar' | 'eliminar'}
+  const [modoEdicion, setModoEdicion] = useState(null);
   const [editCantidad, setEditCantidad] = useState('');
 
   useEffect(() => {
@@ -39,13 +29,12 @@ export default function Inventario({ open, onClose, tienda, user }) {
       setModoEdicion(null);
       setEditCantidad('');
     }
-    // eslint-disable-next-line
   }, [open, tienda]);
 
   async function cargarProductos() {
     if (!tienda?.name) return;
     const db = getFirestore();
-    const productosRef = collection(db, "Inventario", normalizarTexto(tienda.name), "PRODUCTOS");
+    const productosRef = collection(db, "Inventario", tienda.name, "PRODUCTOS");
     const snap = await getDocs(productosRef);
     setProductos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   }
@@ -56,13 +45,10 @@ export default function Inventario({ open, onClose, tienda, user }) {
     setGuardando(true);
     try {
       const db = getFirestore();
-      const tiendaId = normalizarTexto(tienda.name);
-      const productoId = normalizarTexto(nuevoNombre.trim());
-      if (!productoId) throw new Error("El nombre contiene caracteres no permitidos");
-      const productoRef = doc(db, "Inventario", tiendaId, "PRODUCTOS", productoId);
+      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", nuevoNombre.trim());
       await setDoc(productoRef, {
         nombre: nuevoNombre.trim(),
-        cantidad: nuevaCantidad.trim(),
+        cantidad: Number(nuevaCantidad.trim()),
       });
       setNuevoNombre('');
       setNuevaCantidad('');
@@ -73,15 +59,13 @@ export default function Inventario({ open, onClose, tienda, user }) {
     }
   }
 
-  // Guardar cantidad modificada
   async function handleGuardarCantidad() {
     if (!modoEdicion?.producto || !editCantidad) return;
     setGuardando(true);
     try {
       const db = getFirestore();
-      const tiendaId = normalizarTexto(tienda.name);
-      const productoRef = doc(db, "Inventario", tiendaId, "PRODUCTOS", modoEdicion.producto.id);
-      await updateDoc(productoRef, { cantidad: editCantidad });
+      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", modoEdicion.producto.id);
+      await updateDoc(productoRef, { cantidad: Number(editCantidad) });
       setModoEdicion(null);
       setEditCantidad('');
       await cargarProductos();
@@ -90,14 +74,12 @@ export default function Inventario({ open, onClose, tienda, user }) {
     }
   }
 
-  // Eliminar producto
   async function handleEliminarProducto() {
     if (!modoEdicion?.producto) return;
     setGuardando(true);
     try {
       const db = getFirestore();
-      const tiendaId = normalizarTexto(tienda.name);
-      const productoRef = doc(db, "Inventario", tiendaId, "PRODUCTOS", modoEdicion.producto.id);
+      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", modoEdicion.producto.id);
       await deleteDoc(productoRef);
       setModoEdicion(null);
       await cargarProductos();
@@ -107,7 +89,6 @@ export default function Inventario({ open, onClose, tienda, user }) {
   }
 
   if (!zoom) return null;
-
   const isAdmin = user?.rol === "admin";
 
   return (
@@ -139,7 +120,6 @@ export default function Inventario({ open, onClose, tienda, user }) {
           {tienda?.name ? `Inventario de ${tienda.name}` : "Inventario"}
         </h3>
 
-        {/* Sección Agregar producto */}
         {isAdmin && !modoEdicion && (
           <>
             <button
@@ -195,7 +175,6 @@ export default function Inventario({ open, onClose, tienda, user }) {
           </>
         )}
 
-        {/* Sección Edición/Eliminación */}
         {isAdmin && modoEdicion && (
           <div className="my-3 p-2 bg-gray-50 rounded-lg border">
             <h4 className="font-bold mb-1 text-center">{modoEdicion.producto.nombre}</h4>
@@ -241,9 +220,7 @@ export default function Inventario({ open, onClose, tienda, user }) {
                   <button
                     type="button"
                     className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={() =>
-                      setModoEdicion({ ...modoEdicion, accion: "menu" })
-                    }
+                    onClick={() => setModoEdicion({ ...modoEdicion, accion: "menu" })}
                     disabled={guardando}
                   >
                     Cancelar
@@ -266,9 +243,7 @@ export default function Inventario({ open, onClose, tienda, user }) {
                 <div className="flex w-full gap-2">
                   <button
                     className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={() =>
-                      setModoEdicion({ ...modoEdicion, accion: "menu" })
-                    }
+                    onClick={() => setModoEdicion({ ...modoEdicion, accion: "menu" })}
                   >
                     Cancelar
                   </button>
@@ -285,7 +260,6 @@ export default function Inventario({ open, onClose, tienda, user }) {
           </div>
         )}
 
-        {/* Lista de productos */}
         <div>
           <h4 className="font-semibold mb-2 text-gray-700">Productos:</h4>
           <ul className="space-y-2">
