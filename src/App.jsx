@@ -6,6 +6,7 @@ import PedidoModal from "./PedidoModal";
 import Exportarexcel from "./Exportarexcel";
 import PedidosTable from "./PedidosTable";
 import Tiendas from "./Tiendas";
+import TiendasInventario from "./TiendasInventario";
 import ConfirmarPedidoPopup from "./ConfirmarPedidoPopup";
 import {
   findUserByCredentials,
@@ -614,10 +615,7 @@ export default function App() {
                 </section>
               )}
               {view === "inventario" && (
-                <section className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200 flex flex-col items-center text-center w-full max-w-4xl mx-auto">
-                  <h2 className="text-lg font-semibold text-slate-900 mb-2">Inventario</h2>
-                  <p className="text-sm text-slate-500">Aquí irá la sección de Inventario.</p>
-                </section>
+                <TiendasInventario user={currentUserObj} />
               )}
               {view === "configuracion" && isAdmin && (
                 <Configuracion

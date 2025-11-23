@@ -172,4 +172,12 @@ export async function updatePedidoInTienda(storeName, pedidoId, data) {
   await updateDoc(pedidoRef, data);
 }
 
+
+export async function getTiendas() {
+  const db = getFirestore();
+  const tiendasCol = collection(db, "tiendas");
+  const snapshot = await getDocs(tiendasCol);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
 export { db };

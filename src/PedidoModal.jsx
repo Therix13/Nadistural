@@ -96,12 +96,13 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/30 backdrop-blur-sm">
       <div className="absolute inset-0" onClick={onClose} />
       <div className="relative flex flex-col items-center justify-center w-full h-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
+        <div
+          className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
           style={{
             maxHeight: "95vh",
             overflowY: "auto",
             width: "95vw",
-            minWidth: "280px"
+            minWidth: "280px",
           }}
         >
           <h2 className="text-xl font-semibold text-slate-900 mb-4">
@@ -113,7 +114,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
             onSubmit={handleSubmit}
           >
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Cliente</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Cliente
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 value={nombre}
@@ -122,7 +125,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
             </label>
             <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600 font-semibold">Calle y Número</span>
+                <span className="text-sm text-slate-600 font-semibold">
+                  Calle y Número
+                </span>
                 <input
                   className="h-10 px-3 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                   value={calleNumero}
@@ -130,7 +135,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600 font-semibold">Colonia</span>
+                <span className="text-sm text-slate-600 font-semibold">
+                  Colonia
+                </span>
                 <input
                   className="h-10 px-3 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                   value={colonia}
@@ -138,7 +145,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600 font-semibold">Municipio</span>
+                <span className="text-sm text-slate-600 font-semibold">
+                  Municipio
+                </span>
                 <input
                   className="h-10 px-3 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                   value={municipio}
@@ -146,7 +155,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-600 font-semibold">Código Postal</span>
+                <span className="text-sm text-slate-600 font-semibold">
+                  Código Postal
+                </span>
                 <input
                   className="h-10 px-3 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                   value={codigoPostal}
@@ -155,7 +166,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               </label>
             </div>
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Entre calles</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Entre calles
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 value={entreCalles}
@@ -163,7 +176,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               />
             </label>
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Teléfono</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Teléfono
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 value={telefono}
@@ -171,7 +186,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               />
             </label>
             <div className="w-full">
-              <span className="text-sm text-slate-600 font-semibold">Productos</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Productos
+              </span>
               {productos.map((p, idx) => (
                 <div key={idx} className="flex gap-2 items-center mt-2 w-full">
                   <input
@@ -212,7 +229,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               </button>
             </div>
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Precio</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Precio
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 type="number"
@@ -222,7 +241,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               />
             </label>
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Nota</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Nota
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 value={nota}
@@ -230,7 +251,9 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues }) 
               />
             </label>
             <label className="flex flex-col w-full gap-1">
-              <span className="text-sm text-slate-600 font-semibold">Fecha de entrega</span>
+              <span className="text-sm text-slate-600 font-semibold">
+                Fecha de entrega
+              </span>
               <input
                 className="w-full h-10 px-4 rounded-lg border border-slate-300 shadow-sm focus:outline-none"
                 type="date"
