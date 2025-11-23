@@ -22,7 +22,7 @@ import {
   updatePedidoInTienda,
   onPedidosByTiendaRealtime
 } from "./firebase";
-import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 
 const IconArrowLeft = () => (
   <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -391,7 +391,7 @@ export default function App() {
     setShowPedidoModal(true);
   };
 
-  const handleConfirmarPedido = async (pedidoId) => {
+  const handleShowPopupConfirmar = (pedidoId) => {
     const idx = pedidosDeEstaTienda.findIndex(p => p.id === pedidoId);
     setConfirmIdx(idx);
     setShowConfirmPopup(true);
@@ -411,12 +411,14 @@ export default function App() {
       return;
     }
     try {
-      let metodoPago = pedido.metodoPago || metodoPagoArg;
-      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: accion, metodoPago });
-      if (
-        accion === "confirmado" &&
-        (metodoPago === "Efectivo" || metodoPago === "Transferencia")
-      ) {
+      const data = {
+        ...pedido,
+        estado: "confirmado",
+        metodoPago: metodoPagoArg
+      };
+      if (data.metodoPago === undefined) delete data.metodoPago;
+      await updatePedidoInTienda(selectedStore, pedido.id, data);
+      if (metodoPagoArg === "Efectivo" || metodoPagoArg === "Transferencia") {
         await rebajarStockPorPedido(pedido, selectedStore);
       }
       setShowConfirmPopup(false);
@@ -436,7 +438,13 @@ export default function App() {
       return;
     }
     try {
-      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: "reagendar", fecha: nuevaFecha });
+      const data = {
+        ...pedido,
+        estado: "pendiente",
+        fecha: nuevaFecha
+      };
+      delete data.metodoPago;
+      await updatePedidoInTienda(selectedStore, pedido.id, data);
       setShowReagendarPopup(false);
       setReagendarIdx(null);
       setConfirmIdx(null);
@@ -518,11 +526,6 @@ export default function App() {
 
   const pedidoAEditar = editingIndex !== null ? pedidosDeEstaTienda[editingIndex] : undefined;
   const isAnyPopupOpen = showPedidoModal || showConfirmPopup || showReagendarPopup;
-
-  function canEditDeleteConfirm(estado, isAdmin) {
-    if (isAdmin) return true;
-    return estado === "reagendar" || estado === undefined || estado === "";
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col relative">
@@ -630,10 +633,9 @@ export default function App() {
                     <PedidosTable
                       pedidos={pedidosFiltrados}
                       pedidoAEditar={pedidoAEditar}
-                      canEditDeleteConfirm={canEditDeleteConfirm}
                       handleEditarPedido={handleEditarPedido}
                       handleEliminarPedido={handleEliminarPedido}
-                      handleConfirmarPedido={handleConfirmarPedido}
+                      onShowPopupConfirmar={handleShowPopupConfirmar}
                       isAdmin={isAdmin}
                       isAnyPopupOpen={isAnyPopupOpen}
                       fechasUnicas={fechasUnicas}

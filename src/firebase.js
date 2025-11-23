@@ -9,7 +9,7 @@ import {
   query,
   where,
   deleteDoc,
-  onSnapshot // AGREGADO para tiempo real
+  onSnapshot
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -24,7 +24,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Usuarios
 export async function findUserByCredentials(nombre, password) {
   try {
     const usersCol = collection(db, "usuarios");
@@ -77,7 +76,6 @@ export async function deleteUserFromFirestore(id) {
   await deleteDoc(docRef);
 }
 
-// Tiendas
 export async function getAllStores() {
   const storesCol = collection(db, "tiendas");
   const snap = await getDocs(storesCol);
@@ -99,25 +97,19 @@ export async function deleteStoreFromFirestore(storeName) {
   }
 }
 
-// Pedidos
-
-// ---- FUNCIONES EN TIEMPO REAL ----
 export function onPedidosByTiendaRealtime(storeName, callback) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
-  // Devuelve la función para desuscribirse
   return onSnapshot(pedidosCol, (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   });
 }
 
 export function onPedidosCounterByTiendaRealtime(storeName, callback) {
-  // Contador reactivo en tiempo real
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
   return onSnapshot(pedidosCol, (snap) => {
     callback(snap.size);
   });
 }
-// ---- FIN TIEMPO REAL ----
 
 export async function addPedidoToTienda(storeName, pedido) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
@@ -158,23 +150,24 @@ export async function getPedidosCounterByTiendaForNextDelivery(storeName) {
   return pedidosDia.length;
 }
 
-// Eliminar pedido
 export async function deletePedidoFromTienda(storeName, pedidoId) {
   if (!storeName || !pedidoId) return;
   const pedidoRef = doc(db, `tiendas/${storeName}/pedidos/${pedidoId}`);
   await deleteDoc(pedidoRef);
 }
 
-// Editar pedido
 export async function updatePedidoInTienda(storeName, pedidoId, data) {
   if (!storeName || !pedidoId) return;
+  console.log("updatePedidoInTienda params:", storeName, pedidoId, data);
   const pedidoRef = doc(db, `tiendas/${storeName}/pedidos/${pedidoId}`);
-  await updateDoc(pedidoRef, data);
+  try {
+    await updateDoc(pedidoRef, data);
+  } catch (err) {
+    console.error("Firestore updateDoc error:", err);
+  }
 }
 
-
 export async function getTiendas() {
-  const db = getFirestore();
   const tiendasCol = collection(db, "tiendas");
   const snapshot = await getDocs(tiendasCol);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

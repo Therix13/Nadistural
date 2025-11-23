@@ -1,5 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 
+function canEditDeleteConfirm(estado, isAdmin, metodoPago) {
+  if (isAdmin) return true;
+  if (estado === "pendiente" || estado === "reagendar" || estado === undefined || estado === "") return true;
+  if (estado === "confirmado" && metodoPago === "Pendiente") return true;
+  return false;
+}
+
+function getPedidoColorClass(pedido) {
+  if (pedido.estado === "confirmado" && pedido.metodoPago === "Efectivo")
+    return "bg-green-700 text-white";
+  if (pedido.estado === "confirmado" && pedido.metodoPago === "Transferencia")
+    return "bg-blue-700 text-white";
+  if (pedido.estado === "confirmado" && pedido.metodoPago === "Pendiente")
+    return "bg-yellow-500 text-black";
+  if (pedido.estado === "confirmado" && pedido.metodoPago === "Cancelado")
+    return "bg-red-700 text-white";
+  return "";
+}
+
 function FiltroFechaDropdown({ opciones, value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const refDropdown = useRef(null);
@@ -84,167 +103,12 @@ const campos = [
   { key: 'vendedor', label: 'Vendedor' }
 ];
 
-function ZoomModal({ open, onClose, children, hideClose }) {
-  const [visible, setVisible] = useState(open);
-  const [closing, setClosing] = useState(false);
-
-  useEffect(() => {
-    if (open) setVisible(true);
-    else if (visible) {
-      setClosing(true);
-      const timeout = setTimeout(() => {
-        setClosing(false);
-        setVisible(false);
-      }, 220);
-      return () => clearTimeout(timeout);
-    }
-  }, [open]);
-
-  if (!visible) return null;
-  return (
-    <div
-      className="fixed z-30 inset-0 flex items-center justify-center bg-black/30 transition-all"
-      aria-modal
-      role="dialog"
-      onClick={() => { if (!closing) onClose(); }}
-    >
-      <div
-        className={`bg-white rounded-2xl shadow-2xl p-6 w-[95vw] max-w-md max-h-screen overflow-y-auto relative
-          ${open && !closing ? "scale-100 opacity-100 animate-zoomIn"
-            : closing ? "animate-zoomOut" : "scale-95 opacity-0"}
-          transition-all duration-300`}
-        onClick={e => e.stopPropagation()}
-        style={{ animationDuration: "220ms" }}
-      >
-        {children}
-        {!hideClose && (
-        <button
-          className="absolute top-2 right-2 text-gray-400 hover:text-gray-900"
-          onClick={() => { if (!closing) onClose(); }}
-        >
-          <svg className="w-7 h-7 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-        )}
-      </div>
-      <style>
-        {`
-        @keyframes zoomIn {
-          0% {transform: scale(0.8);opacity:0;}
-          100% {transform: scale(1);opacity:1;}
-        }
-        @keyframes zoomOut {
-          0% {transform: scale(1);opacity:1;}
-          100% {transform: scale(0.8);opacity:0;}
-        }
-        .animate-zoomIn{animation: zoomIn 0.22s cubic-bezier(.36,.54,.37,1.12);}
-        .animate-zoomOut{animation: zoomOut 0.22s cubic-bezier(.36,.54,.37,1.12);}
-        `}
-      </style>
-    </div>
-  );
-}
-
-function PedidoDetalleModalMobile({ pedido, open, onClose, canEditDeleteConfirm, onEdit, onConfirm, onDelete, isAdmin, isAnyPopupOpen, hideClose }) {
-  if (!pedido) return null;
-  return (
-    <ZoomModal open={open} onClose={onClose} hideClose={hideClose}>
-      <div className="text-left space-y-2">
-        <div><span className="font-semibold">Cliente:</span> {pedido.nombre}</div>
-        <div><span className="font-semibold">Calle y número:</span> {pedido.calleNumero}</div>
-        <div><span className="font-semibold">Colonia:</span> {pedido.colonia}</div>
-        <div><span className="font-semibold">Municipio:</span> {pedido.municipio}</div>
-        <div><span className="font-semibold">Código Postal:</span> {pedido.codigoPostal}</div>
-        <div><span className="font-semibold">Entre calles:</span> {pedido.entreCalles}</div>
-        <div><span className="font-semibold">Teléfono:</span> {pedido.telefono}</div>
-        <div><span className="font-semibold">Productos:</span>{" "}
-          {Array.isArray(pedido.productos)
-            ? pedido.productos.map((p, ix) => (
-                <span key={ix}>
-                  <span className="font-semibold">{p.cantidad}</span>{" "}
-                  <span>{p.producto}</span>
-                  {ix < pedido.productos.length - 1 ? ", " : ""}
-                </span>
-              ))
-            : pedido.productos}
-        </div>
-        <div><span className="font-semibold">Precio:</span> {pedido.precio}</div>
-        <div><span className="font-semibold">Nota:</span> {pedido.nota}</div>
-        <div><span className="font-semibold">Fecha:</span> {pedido.fecha}</div>
-        <div><span className="font-semibold">Vendedor:</span> {pedido.vendedor}</div>
-      </div>
-      <div className="flex space-x-6 items-center justify-center mt-6">
-        {canEditDeleteConfirm(pedido.estado, isAdmin) && (
-          <>
-            <button
-              title="Editar"
-              className="bg-blue-100 hover:bg-blue-200 transition rounded-full p-3"
-              onClick={() => { onEdit(pedido.id); onClose(); }}
-              disabled={isAnyPopupOpen}
-            >
-              <svg className="w-7 h-7 text-blue-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
-              </svg>
-            </button>
-            <button
-              title="Eliminar"
-              className="bg-red-100 hover:bg-red-200 transition rounded-full p-3"
-              onClick={() => onDelete(pedido.id)}
-              disabled={isAnyPopupOpen}
-            >
-              <svg className="w-7 h-7 text-rose-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-            <button
-              title="Confirmar"
-              className="bg-green-100 hover:bg-green-200 transition rounded-full p-3"
-              onClick={() => { onConfirm(pedido.id); onClose(); }}
-              disabled={isAnyPopupOpen}
-            >
-              <svg className="w-9 h-9 text-green-600 transition" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-              </svg>
-            </button>
-          </>
-        )}
-      </div>
-    </ZoomModal>
-  );
-}
-
-function ConfirmarEliminarModal({ open, onClose, onConfirm }) {
-  return (
-    <ZoomModal open={open} onClose={onClose} hideClose={true}>
-      <div className="flex flex-col items-center justify-center min-w-[220px]">
-        <div className="font-bold text-lg text-center mb-2 text-black">¿Estas seguro que deseas eliminar este pedido?</div>
-        <div className="flex gap-6 mt-4 justify-center">
-          <button
-            className="rounded-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 transition text-xl font-bold"
-            onClick={onClose}
-          >
-            No
-          </button>
-          <button
-            className="rounded-full p-4 bg-[#ec004c] hover:bg-[#c8003e] text-white transition text-xl font-bold flex items-center"
-            onClick={onConfirm}
-          >
-            Sí
-          </button>
-        </div>
-      </div>
-    </ZoomModal>
-  );
-}
-
 export default function PedidosTable({
   pedidos,
   pedidoAEditar,
-  canEditDeleteConfirm,
   handleEditarPedido,
   handleEliminarPedido,
-  handleConfirmarPedido,
+  onShowPopupConfirmar,
   isAdmin,
   isAnyPopupOpen,
   fechasUnicas,
@@ -260,37 +124,23 @@ export default function PedidosTable({
     ...fechasUnicas.map((fecha) => ({ value: fecha, label: fecha })),
   ];
   const pedidosOrdenados = sortPedidosByFechaAndEstado(pedidos);
-  const [detalle, setDetalle] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-
   const [deletePopupPedidoId, setDeletePopupPedidoId] = useState(null);
 
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 640);
-    }
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const mostrarAccionEliminar = (pedido) => {
-    return (
-      <button
-        title="Eliminar"
-        className="focus:outline-none group"
-        onClick={() => setDeletePopupPedidoId(pedido.id)}
-        disabled={isAnyPopupOpen}
-      >
-        <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    );
-  };
+  const mostrarAccionEliminar = (pedido) => (
+    <button
+      title="Eliminar"
+      className="focus:outline-none group"
+      onClick={() => setDeletePopupPedidoId(pedido.id)}
+      disabled={isAnyPopupOpen}
+    >
+      <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  );
 
   const handleEliminarPedidoConfirmado = (id) => {
     setDeletePopupPedidoId(null);
-    setDetalle(null);
     handleEliminarPedido(id);
   };
 
@@ -336,25 +186,6 @@ export default function PedidosTable({
         <div>{ExportComponent}</div>
       </div>
 
-      <PedidoDetalleModalMobile
-        pedido={detalle}
-        open={!!detalle}
-        onClose={() => setDetalle(null)}
-        canEditDeleteConfirm={canEditDeleteConfirm}
-        onEdit={handleEditarPedido}
-        onDelete={(id) => setDeletePopupPedidoId(id)}
-        onConfirm={handleConfirmarPedido}
-        isAdmin={isAdmin}
-        isAnyPopupOpen={isAnyPopupOpen}
-        hideClose={!!deletePopupPedidoId}
-      />
-
-      <ConfirmarEliminarModal
-        open={!!deletePopupPedidoId}
-        onClose={() => setDeletePopupPedidoId(null)}
-        onConfirm={() => handleEliminarPedidoConfirmado(deletePopupPedidoId)}
-      />
-
       <div className="w-full">
         <div className="hidden sm:block">
           <table className="w-full rounded-xl bg-white" style={{ fontSize: "clamp(11px, 1.2vw, 1rem)" }}>
@@ -373,18 +204,7 @@ export default function PedidosTable({
                     i % 2 === 0
                       ? { background: "#fff" }
                       : { background: "linear-gradient(90deg, #f6f7f9 0%, #e5e7eb 100%)" };
-                  const tdClass =
-                    pedido.estado === "efectivo"
-                      ? "bg-green-600 text-black"
-                      : pedido.estado === "transferencia"
-                      ? "bg-blue-600 text-white"
-                      : pedido.estado === "pendiente"
-                      ? "bg-yellow-500 text-black"
-                      : pedido.estado === "cancelado"
-                      ? "bg-red-600 text-white"
-                      : pedido.estado === "reagendar"
-                      ? "bg-gray-400 text-gray-900"
-                      : "";
+                  const tdClass = getPedidoColorClass(pedido);
                   return (
                     <React.Fragment key={pedido.id || i}>
                       <tr style={alternaFila}>
@@ -410,7 +230,7 @@ export default function PedidosTable({
                         ))}
                         <td className={`px-2 py-2 text-center align-middle ${tdClass}`}>
                           <div className="flex justify-center items-center gap-1 md:gap-2">
-                            {canEditDeleteConfirm(pedido.estado, isAdmin) && (
+                            {canEditDeleteConfirm(pedido.estado, isAdmin, pedido.metodoPago) && (
                               <>
                                 <button
                                   title="Editar"
@@ -426,7 +246,7 @@ export default function PedidosTable({
                                 <button
                                   title="Confirmar"
                                   className="focus:outline-none group"
-                                  onClick={() => handleConfirmarPedido(pedido.id)}
+                                  onClick={() => onShowPopupConfirmar(pedido.id)}
                                   disabled={isAnyPopupOpen}
                                 >
                                   <svg className="w-6 h-6 rounded-full text-green-700 transition bg-green-100 hover:bg-green-200 p-1 shadow" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
@@ -463,23 +283,11 @@ export default function PedidosTable({
         <div className="sm:hidden">
           {pedidosOrdenados.length ? (
             pedidosOrdenados.map((pedido, i) => {
-              let bg =
-                pedido.estado === "efectivo"
-                  ? "bg-green-600 text-black"
-                  : pedido.estado === "transferencia"
-                  ? "bg-blue-600 text-white"
-                  : pedido.estado === "pendiente"
-                  ? "bg-yellow-500 text-black"
-                  : pedido.estado === "cancelado"
-                  ? "bg-red-600 text-white"
-                  : pedido.estado === "reagendar"
-                  ? "bg-gray-400 text-gray-900"
-                  : "bg-white";
+              const bg = getPedidoColorClass(pedido) || "bg-white";
               return (
                 <div
                   key={pedido.id || i}
                   className={`mb-3 rounded-lg shadow ${bg} p-4 cursor-pointer transition`}
-                  onClick={() => setDetalle(pedido)}
                 >
                   <div className="flex flex-col">
                     <div className="font-semibold text-lg">{pedido.nombre}</div>
@@ -493,6 +301,27 @@ export default function PedidosTable({
           )}
         </div>
       </div>
+      {deletePopupPedidoId && (
+        <div className="fixed z-40 inset-0 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl p-6 shadow-xl flex flex-col items-center">
+            <div className="mb-4 text-lg font-bold text-black">¿Estás seguro que deseas eliminar este pedido?</div>
+            <div className="flex gap-6 mt-4 justify-center">
+              <button
+                className="rounded-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 transition text-xl font-bold"
+                onClick={() => setDeletePopupPedidoId(null)}
+              >
+                No
+              </button>
+              <button
+                className="rounded-full p-4 bg-[#ec004c] hover:bg-[#c8003e] text-white transition text-xl font-bold flex items-center"
+                onClick={() => handleEliminarPedidoConfirmado(deletePopupPedidoId)}
+              >
+                Sí
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
