@@ -22,7 +22,7 @@ import {
   updatePedidoInTienda,
   onPedidosByTiendaRealtime
 } from "./firebase";
-import { getFirestore, collection, getDocs, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, getDocs, onSnapshot, doc, getDoc, updateDoc } from "firebase/firestore";
 
 const IconArrowLeft = () => (
   <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -66,6 +66,20 @@ function formatoFecha(fechaString) {
   const m = String(fecha.getMonth() + 1).padStart(2, "0");
   const y = String(fecha.getFullYear()).slice(2);
   return `${dia}_${d}/${m}/${y}`;
+}
+
+async function rebajarStockPorPedido(pedido, tiendaName) {
+  if (!pedido || !Array.isArray(pedido.productos)) return;
+  const db = getFirestore();
+  for (const { producto, cantidad } of pedido.productos) {
+    if (!producto || !cantidad) continue;
+    const productoRef = doc(db, "Inventario", tiendaName, "PRODUCTOS", producto);
+    const snap = await getDoc(productoRef);
+    if (!snap.exists()) continue;
+    const stockActual = Number(snap.data().cantidad) || 0;
+    const nuevoStock = stockActual - Number(cantidad);
+    await updateDoc(productoRef, { cantidad: nuevoStock >= 0 ? nuevoStock : 0 });
+  }
 }
 
 export default function App() {
@@ -383,7 +397,7 @@ export default function App() {
     setShowConfirmPopup(true);
   };
 
-  const handlePedidoAccion = async (accion) => {
+  const handlePedidoAccion = async (accion, metodoPagoArg) => {
     const pedido = pedidosDeEstaTienda[confirmIdx];
     if (!pedido || !selectedStore) {
       setShowConfirmPopup(false);
@@ -397,11 +411,17 @@ export default function App() {
       return;
     }
     try {
-      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: accion });
+      let metodoPago = pedido.metodoPago || metodoPagoArg;
+      await updatePedidoInTienda(selectedStore, pedido.id, { ...pedido, estado: accion, metodoPago });
+      if (
+        accion === "confirmado" &&
+        (metodoPago === "Efectivo" || metodoPago === "Transferencia")
+      ) {
+        await rebajarStockPorPedido(pedido, selectedStore);
+      }
       setShowConfirmPopup(false);
       setConfirmIdx(null);
     } catch (err) {
-      console.error("Error confirmando pedido en Firestore:", err);
       setShowConfirmPopup(false);
       setConfirmIdx(null);
     }
@@ -421,7 +441,6 @@ export default function App() {
       setReagendarIdx(null);
       setConfirmIdx(null);
     } catch (err) {
-      console.error("Error reagendando pedido en Firestore:", err);
       setShowReagendarPopup(false);
       setReagendarIdx(null);
       setConfirmIdx(null);

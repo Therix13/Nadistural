@@ -11,24 +11,22 @@ export default function ConfirmarPedidoPopup({ open, onClose, onAction }) {
         <div className="flex flex-col gap-3 w-full">
           <button
             className="w-full px-5 py-3 rounded-xl font-bold bg-green-700 text-white shadow-md hover:bg-green-800 transition"
-            onClick={() => onAction("efectivo")}
+            onClick={() => onAction("confirmado", "Efectivo")}
           >
             Efectivo
           </button>
           <button
             className="w-full px-5 py-3 rounded-xl font-bold bg-blue-700 text-white shadow-md hover:bg-blue-800 transition"
-            onClick={() => onAction("transferencia")}
+            onClick={() => onAction("confirmado", "Transferencia")}
           >
             Transferencia
           </button>
-          {/* Pendiente EN AMARILLO */}
           <button
             className="w-full px-5 py-3 rounded-xl font-bold bg-yellow-500 text-yellow-900 shadow-md hover:bg-yellow-600 transition"
             onClick={() => onAction("pendiente")}
           >
             Pendiente
           </button>
-          {/* Reagendar: gris medio, nombre cambiado */}
           <button
             className="w-full px-5 py-3 rounded-xl font-bold bg-gray-400 text-gray-900 shadow-md hover:bg-gray-500 transition"
             onClick={() => onAction("reagendar")}
