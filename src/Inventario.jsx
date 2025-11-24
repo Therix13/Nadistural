@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getFirestore, collection, setDoc, doc, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import PedidoModal from "./PedidoModal";
 
-export default function Inventario({ open, onClose, tienda, user }) {
+export default function Inventario({ open, onClose, tienda, user, onAlertaProducto }) {
   const [zoom, setZoom] = useState(open);
   const [productos, setProductos] = useState([]);
   const [showCampos, setShowCampos] = useState(false);
@@ -85,6 +85,12 @@ export default function Inventario({ open, onClose, tienda, user }) {
       await cargarProductos();
     } finally {
       setGuardando(false);
+    }
+  }
+
+  function handleAlertaClick() {
+    if (modoEdicion?.producto && typeof onAlertaProducto === "function") {
+      onAlertaProducto(modoEdicion.producto, tienda);
     }
   }
 
@@ -198,10 +204,19 @@ export default function Inventario({ open, onClose, tienda, user }) {
                   Eliminar
                 </button>
                 <button
+                  className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-2 rounded-lg font-bold"
+                  onClick={handleAlertaClick}
+                  disabled={guardando}
+                >
+                  Alerta
+                </button>
+                <button
                   className="text-sm underline text-gray-500 hover:text-gray-800 mt-1"
                   onClick={() => setModoEdicion(null)}
                   disabled={guardando}
-                >Cancelar</button>
+                >
+                  Cancelar
+                </button>
               </div>
             )}
             {modoEdicion.accion === "editar" && (

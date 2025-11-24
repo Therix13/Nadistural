@@ -103,6 +103,95 @@ const campos = [
   { key: 'vendedor', label: 'Vendedor' }
 ];
 
+function PedidoDetalleModalMobile({
+  pedido,
+  open,
+  onClose,
+  canEditDeleteConfirm,
+  onEdit,
+  onDelete,
+  onConfirm,
+  isAdmin,
+  isAnyPopupOpen,
+  hideClose
+}) {
+  if (!pedido || !open) return null;
+  return (
+    <div className="fixed z-50 inset-0 bg-black/40 flex items-center justify-center">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-[95vw] max-w-md max-h-screen overflow-y-auto relative">
+        <button
+          className="absolute top-2 right-2 text-gray-400 hover:text-gray-900"
+          onClick={onClose}
+          style={{ display: hideClose ? "none" : undefined }}
+        >
+          <svg className="w-7 h-7 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+        <div className="text-left space-y-2">
+          <div><span className="font-semibold">Cliente:</span> {pedido.nombre}</div>
+          <div><span className="font-semibold">Calle y número:</span> {pedido.calleNumero}</div>
+          <div><span className="font-semibold">Colonia:</span> {pedido.colonia}</div>
+          <div><span className="font-semibold">Municipio:</span> {pedido.municipio}</div>
+          <div><span className="font-semibold">Código Postal:</span> {pedido.codigoPostal}</div>
+          <div><span className="font-semibold">Entre calles:</span> {pedido.entreCalles}</div>
+          <div><span className="font-semibold">Teléfono:</span> {pedido.telefono}</div>
+          <div><span className="font-semibold">Productos:</span> {Array.isArray(pedido.productos)
+            ? pedido.productos.map((p, ix) => (
+                <span key={ix}>
+                  <span className="font-semibold">{p.cantidad}</span>{" "}
+                  <span>{p.producto}</span>
+                  {ix < pedido.productos.length - 1 ? ", " : ""}
+                </span>
+              ))
+            : pedido.productos}
+          </div>
+          <div><span className="font-semibold">Precio:</span> {pedido.precio}</div>
+          <div><span className="font-semibold">Nota:</span> {pedido.nota}</div>
+          <div><span className="font-semibold">Fecha:</span> {pedido.fecha}</div>
+          <div><span className="font-semibold">Vendedor:</span> {pedido.vendedor}</div>
+        </div>
+        <div className="flex space-x-6 items-center justify-center mt-6">
+          {canEditDeleteConfirm(pedido.estado, isAdmin, pedido.metodoPago) && (
+            <>
+              <button
+                title="Editar"
+                className="bg-blue-100 hover:bg-blue-200 transition rounded-full p-3"
+                onClick={() => { onEdit(pedido.id); onClose(); }}
+                disabled={isAnyPopupOpen}
+              >
+                <svg className="w-7 h-7 text-blue-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
+                </svg>
+              </button>
+              <button
+                title="Eliminar"
+                className="bg-red-100 hover:bg-red-200 transition rounded-full p-3"
+                onClick={() => { onDelete(pedido.id); onClose(); }}
+                disabled={isAnyPopupOpen}
+              >
+                <svg className="w-7 h-7 text-rose-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+              <button
+                title="Confirmar"
+                className="bg-green-100 hover:bg-green-200 transition rounded-full p-3"
+                onClick={() => { onConfirm(pedido.id); onClose(); }}
+                disabled={isAnyPopupOpen}
+              >
+                <svg className="w-9 h-9 text-green-600 transition" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PedidosTable({
   pedidos,
   pedidoAEditar,
@@ -125,6 +214,7 @@ export default function PedidosTable({
   ];
   const pedidosOrdenados = sortPedidosByFechaAndEstado(pedidos);
   const [deletePopupPedidoId, setDeletePopupPedidoId] = useState(null);
+  const [detalle, setDetalle] = useState(null);
 
   const mostrarAccionEliminar = (pedido) => (
     <button
@@ -288,6 +378,7 @@ export default function PedidosTable({
                 <div
                   key={pedido.id || i}
                   className={`mb-3 rounded-lg shadow ${bg} p-4 cursor-pointer transition`}
+                  onClick={() => setDetalle(pedido)}
                 >
                   <div className="flex flex-col">
                     <div className="font-semibold text-lg">{pedido.nombre}</div>
@@ -321,6 +412,20 @@ export default function PedidosTable({
             </div>
           </div>
         </div>
+      )}
+      {detalle && (
+        <PedidoDetalleModalMobile
+          pedido={detalle}
+          open={!!detalle}
+          onClose={() => setDetalle(null)}
+          canEditDeleteConfirm={canEditDeleteConfirm}
+          onEdit={handleEditarPedido}
+          onDelete={handleEliminarPedido}
+          onConfirm={onShowPopupConfirmar}
+          isAdmin={isAdmin}
+          isAnyPopupOpen={isAnyPopupOpen}
+          hideClose={false}
+        />
       )}
     </div>
   );
