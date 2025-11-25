@@ -103,6 +103,7 @@ export default function App() {
     const storedUsername = localStorage.getItem("sesion_usuario");
     if (storedUsername && !user) {
       setUser(storedUsername);
+      try { if (typeof sessionStorage !== "undefined") sessionStorage.setItem("inventario_session", String(Date.now())); } catch (e) {}
     }
   }, []);
 
@@ -169,6 +170,7 @@ export default function App() {
       const found = await findUserByCredentials(u, p);
       if (found) {
         setUser(found.nombre);
+        try { if (typeof sessionStorage !== "undefined") sessionStorage.setItem("inventario_session", String(Date.now())); } catch (e) {}
         setCurrentUserObj({
           id: found.id,
           nombre: found.nombre,
@@ -210,6 +212,7 @@ export default function App() {
       }
       if (u === "admin" && p === "admin") {
         setUser("admin");
+        try { if (typeof sessionStorage !== "undefined") sessionStorage.setItem("inventario_session", String(Date.now())); } catch (e) {}
         setCurrentUserObj({ id: null, nombre: "admin", rol: "admin", stores: [] });
         setView("inicio");
         if (rememberMe) {
@@ -230,6 +233,7 @@ export default function App() {
     setView("inicio");
     setSelectedStore(null);
     localStorage.removeItem("sesion_usuario");
+    try { if (typeof sessionStorage !== "undefined") sessionStorage.removeItem("inventario_session"); } catch (e) {}
   };
 
   const handleAddUser = async (newUser) => {
