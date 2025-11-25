@@ -22,7 +22,7 @@ import {
   updatePedidoInTienda,
   onPedidosByTiendaRealtime
 } from "./firebase";
-import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, addDoc } from "firebase/firestore";
 
 const IconArrowLeft = () => (
   <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -424,9 +424,33 @@ export default function App() {
       };
       if (data.metodoPago === undefined) delete data.metodoPago;
       await updatePedidoInTienda(selectedStore, pedido.id, data);
+
       if (metodoPagoArg === "Efectivo" || metodoPagoArg === "Transferencia") {
         await rebajarStockPorPedido(pedido, selectedStore);
       }
+
+      if (pedido.productos && Array.isArray(pedido.productos)) {
+        const db = getFirestore();
+        const movimientosRef = collection(db, "Inventario", selectedStore, "MOVIMIENTOS");
+        const usuario = typeof user === "string" ? user : (user?.nombre ?? "unknown");
+        const cliente = pedido.cliente || "";
+        const fechaPedido = pedido.fecha || "";
+        const movimientos = pedido.productos.map(p => ({
+          productoId: p.producto,
+          cantidad: Number(p.cantidad || 1),
+          precio: Number(p.precio || 0),
+          tipo: "venta",
+          usuario,
+          pedidoId: pedido.id,
+          cliente,
+          fechaPedido,
+          timestamp: new Date().toISOString()
+        }));
+        await Promise.all(movimientos.map(mov =>
+          addDoc(movimientosRef, mov)
+        ));
+      }
+
       setShowConfirmPopup(false);
       setConfirmIdx(null);
     } catch (err) {

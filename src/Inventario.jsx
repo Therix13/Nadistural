@@ -218,7 +218,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ zIndex: 1 }} onClick={onClose} />
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl p-6 sm:p-8 min-w-[320px] min-h-[260px] max-w-3xl mx-auto transition-all duration-200 ${
+        className={`relative bg-white rounded-2xl shadow-2xl p-2 sm:p-6 min-w-[320px] min-h-[260px] max-w-md w-full mx-auto transition-all duration-200 ${
           open ? "scale-100 opacity-100 animate-zoomIn" : "animate-zoomOut"
         }`}
         onClick={e => e.stopPropagation()}
@@ -235,18 +235,20 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
         <h3 className="text-xl sm:text-2xl font-bold mb-4 text-center text-gray-800">
           {tienda?.name ? `Inventario de ${tienda.name}` : "Inventario"}
         </h3>
-        {isAdmin && !modoEdicion && (
+        {!modoEdicion && (
           <>
-            <div className="flex gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4 w-full">
+              {isAdmin && (
+                <button
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150 text-sm"
+                  onClick={() => setShowCampos(v => !v)}
+                  disabled={guardando}
+                >
+                  Agregar Productos
+                </button>
+              )}
               <button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150"
-                onClick={() => setShowCampos(v => !v)}
-                disabled={guardando}
-              >
-                Agregar Productos
-              </button>
-              <button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150"
+                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150 text-sm"
                 onClick={() => {
                   setShowPaqueteriaGlobal(v => !v);
                   if (paqItems.length === 0) setPaqItems([{ productoId: productos[0]?.id ?? "", cantidad: "" }]);
@@ -260,7 +262,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
               <form className="w-full flex flex-col gap-2 mb-3 items-center justify-center" onSubmit={handleAgregarProducto}>
                 <input
                   type="text"
-                  className="border rounded-lg px-3 py-2 w-full"
+                  className="border rounded-lg px-3 py-2 w-full text-xs sm:text-sm"
                   placeholder="Nombre"
                   value={nuevoNombre}
                   onChange={e => setNuevoNombre(e.target.value)}
@@ -270,7 +272,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
                 <input
                   type="number"
                   min="0"
-                  className="border rounded-lg px-3 py-2 w-full"
+                  className="border rounded-lg px-3 py-2 w-full text-xs sm:text-sm"
                   placeholder="Cantidad"
                   value={nuevaCantidad}
                   onChange={e => setNuevaCantidad(e.target.value)}
@@ -279,7 +281,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
                 <div className="flex w-full gap-2">
                   <button
                     type="button"
-                    className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
+                    className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2 text-xs sm:text-base"
                     onClick={() => {
                       setShowCampos(false);
                       setNuevoNombre('');
@@ -291,7 +293,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
                   </button>
                   <button
                     type="submit"
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow w-1/2"
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow w-1/2 text-xs sm:text-base"
                     disabled={guardando || !nuevoNombre.trim() || !nuevaCantidad.trim()}
                   >
                     Guardar
@@ -300,13 +302,13 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
               </form>
             )}
             {showPaqueteriaGlobal && (
-              <div className="w-full mb-4 p-4 bg-gray-50 rounded-lg border">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Productos y cantidades</label>
-                <div className="space-y-2 mb-3">
+              <div className="w-full mb-4 p-2 sm:p-4 bg-gray-50 rounded-lg border">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Productos y cantidades</label>
+                <div className="space-y-2 mb-3 max-h-52 overflow-y-auto pr-1">
                   {paqItems.map((row, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
+                    <div key={idx} className="flex flex-col sm:flex-row gap-1 sm:gap-2 items-stretch">
                       <select
-                        className="flex-1 border rounded-lg px-3 py-2"
+                        className="flex-1 border rounded-lg px-3 py-2 text-xs sm:text-sm"
                         value={row.productoId}
                         onChange={e => updatePaqRow(idx, "productoId", e.target.value)}
                       >
@@ -318,14 +320,14 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
                       <input
                         type="number"
                         min="0"
-                        className="w-28 border rounded-lg px-3 py-2"
+                        className="w-full sm:w-32 border rounded-lg px-3 py-2 text-xs sm:text-sm"
                         placeholder="Cantidad"
                         value={row.cantidad}
                         onChange={e => updatePaqRow(idx, "cantidad", e.target.value)}
                       />
                       <button
                         type="button"
-                        className="px-3 py-2 bg-gray-200 rounded-lg"
+                        className="flex-shrink-0 px-3 py-2 bg-gray-200 rounded-lg text-slate-800 text-base"
                         onClick={() => removePaqRow(idx)}
                         disabled={paqItems.length === 1 || guardando}
                       >
@@ -334,37 +336,37 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-2 mb-3">
-                  <button type="button" className="bg-gray-100 px-3 py-2 rounded-lg" onClick={addPaqRow}>Añadir fila</button>
+                <div className="flex mb-3">
+                  <button type="button" className="flex-1 bg-gray-100 hover:bg-gray-200 text-xs sm:text-sm px-3 py-2 rounded-lg" onClick={addPaqRow}>Añadir fila</button>
                 </div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Empresa de paquetería</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Empresa de paquetería</label>
                 <input
                   type="text"
-                  className="border rounded-lg px-3 py-2 w-full mb-3"
+                  className="border rounded-lg px-3 py-2 w-full mb-3 text-xs sm:text-sm"
                   placeholder="Ej. DHL"
                   value={paqEmpresa}
                   onChange={e => setPaqEmpresa(e.target.value)}
                   disabled={guardando}
                 />
-                <label className="block text-sm font-medium text-gray-700 mb-2">Código / Tracking</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Código / Tracking</label>
                 <input
                   type="text"
-                  className="border rounded-lg px-3 py-2 w-full mb-3"
+                  className="border rounded-lg px-3 py-2 w-full mb-3 text-xs sm:text-sm"
                   placeholder="Ej. AWB123456"
                   value={paqCodigo}
                   onChange={e => setPaqCodigo(e.target.value)}
                   disabled={guardando}
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-bold"
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-bold text-xs sm:text-base"
                     onClick={() => { setShowPaqueteriaGlobal(false); setPaqEmpresa(''); setPaqCodigo(''); setPaqItems([{ productoId: productos[0]?.id ?? "", cantidad: "" }]); }}
                     disabled={guardando}
                   >
                     Cancelar
                   </button>
                   <button
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold"
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-xs sm:text-base"
                     onClick={handleGuardarPaqueteriaGlobal}
                     disabled={guardando || paqItems.every(r => !r.productoId || !(Number(r.cantidad) > 0))}
                   >
@@ -504,7 +506,7 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
           </div>
         )}
         <div>
-          <h4 className="font-semibold mb-2 text-gray-700">Productos:</h4>
+          <h4 className="font-semibold mb-2 text-gray-700 text-sm sm:text-base">Productos:</h4>
           <ul className="space-y-2">
             {productos.length === 0 && (
               <li className="text-gray-400 text-sm">No hay productos registrados.</li>
@@ -542,7 +544,6 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
           </ul>
         </div>
       </div>
-
       {showAlertaModal && alertaProductosTriggers.length > 0 && (
         <div className="fixed z-60 inset-0 flex items-center justify-center" onClick={e => e.stopPropagation()}>
           <div className="absolute inset-0 bg-black/40" />

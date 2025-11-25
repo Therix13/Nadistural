@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -6,6 +6,15 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,10 +31,12 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center" style={{
+      background: "linear-gradient(180deg, #111a2b 0%, #162032 100%)"
+    }}>
       <form
         onSubmit={handleLogin}
-        className="bg-white rounded-2xl shadow-2xl p-10 min-w-[340px] flex flex-col items-center"
+        className="bg-white rounded-2xl shadow-2xl p-10 min-w-[340px] flex flex-col items-center w-[95vw] max-w-sm mx-auto"
         style={{ width: "350px" }}
       >
         <h2 className="text-2xl font-bold mb-6 text-blue-700 text-center">Iniciar sesión</h2>
