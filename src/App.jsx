@@ -99,6 +99,8 @@ export default function App() {
   const [confirmIdx, setConfirmIdx] = useState(null);
   const [productosTienda, setProductosTienda] = useState([]);
 
+  console.log("VISIBLE view:", view, "currentUserObj:", currentUserObj);
+
   useEffect(() => {
     const storedUsername = localStorage.getItem("sesion_usuario");
     if (storedUsername && !user) {
@@ -658,7 +660,10 @@ export default function App() {
                 </section>
               )}
               {view === "inventario" && (
-                <TiendasInventario user={currentUserObj} />
+                (() => {
+                  console.log("Mostrando TiendasInventario: (user)", currentUserObj);
+                  return <TiendasInventario user={currentUserObj} />;
+                })()
               )}
               {view === "configuracion" && isAdmin && (
                 <Configuracion

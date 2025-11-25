@@ -1,580 +1,365 @@
 import React, { useEffect, useState } from "react";
-import { getFirestore, collection, setDoc, doc, getDocs, deleteDoc, updateDoc, increment, addDoc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, updateDoc, getDoc, increment } from "firebase/firestore";
+import { getAllStores } from "./firebase";
+import Inventario from "./Inventario";
 
-export default function Inventario({ open, onClose, tienda, user, onAlertaProducto }) {
-  const [zoom, setZoom] = useState(open);
-  const [productos, setProductos] = useState([]);
-  const [showCampos, setShowCampos] = useState(false);
-  const [nuevoNombre, setNuevoNombre] = useState('');
-  const [nuevaCantidad, setNuevaCantidad] = useState('');
-  const [guardando, setGuardando] = useState(false);
-  const [modoEdicion, setModoEdicion] = useState(null);
-  const [editCantidad, setEditCantidad] = useState('');
-  const [alertaCantidad, setAlertaCantidad] = useState('');
-  const [showAlertaModal, setShowAlertaModal] = useState(false);
-  const [alertaProductosTriggers, setAlertaProductosTriggers] = useState([]);
-  const [paqEmpresa, setPaqEmpresa] = useState('');
-  const [paqCodigo, setPaqCodigo] = useState('');
-  const [showPaqueteriaGlobal, setShowPaqueteriaGlobal] = useState(false);
-  const [paqItems, setPaqItems] = useState([{ productoId: "", cantidad: "" }]);
-
-  useEffect(() => {
-    if (open) setZoom(true);
-    else if (zoom) {
-      const timeout = setTimeout(() => setZoom(false), 220);
-      return () => clearTimeout(timeout);
+function formatDateDisplay(dateString) {
+  if (!dateString) return "";
+  try {
+    // If it's an ISO datetime or yyyy-mm-dd, create Date and format
+    const d = new Date(dateString);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString();
     }
-  }, [open]);
-
-  useEffect(() => {
-    if (open && tienda?.name) {
-      cargarProductos();
-      setShowCampos(false);
-      setNuevoNombre('');
-      setNuevaCantidad('');
-      setModoEdicion(null);
-      setEditCantidad('');
-      setAlertaCantidad('');
-      setPaqEmpresa('');
-      setPaqCodigo('');
-      setShowPaqueteriaGlobal(false);
-      setPaqItems([{ productoId: "", cantidad: "" }]);
-    }
-  }, [open, tienda]);
-
-  function getDismissKey() {
-    const usernameKey = typeof user === "string" ? user : (user?.nombre ?? "anon");
-    return `alerta_dismissed_${usernameKey}_${tienda?.name ?? "global"}`;
+    // fallback to raw
+    return dateString;
+  } catch (e) {
+    return dateString;
   }
+}
 
-  async function cargarProductos() {
-    if (!tienda?.name) return;
+export default function TiendasInventario({ user }) {
+  const [stores, setStores] = useState([]);
+  const [alertCounts, setAlertCounts] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [openInventario, setOpenInventario] = useState(false);
+  const [activeStore, setActiveStore] = useState(null);
+  const [showMovimientos, setShowMovimientos] = useState(false);
+  const [movimientos, setMovimientos] = useState([]);
+  const [loadingMovimientos, setLoadingMovimientos] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMovimiento, setConfirmMovimiento] = useState(null);
+  const [confirmDate, setConfirmDate] = useState("");
+  const [confirmQty, setConfirmQty] = useState("");
+  const [savingConfirm, setSavingConfirm] = useState(false);
+
+  // New states for global paqueterias view
+  const [showPaqModal, setShowPaqModal] = useState(false);
+  const [paqMovimientos, setPaqMovimientos] = useState([]);
+  const [loadingPaqMovs, setLoadingPaqMovs] = useState(false);
+  const [paqSelectedDate, setPaqSelectedDate] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      try {
+        const sDocs = await getAllStores();
+        const storeNames = sDocs.map(s => (typeof s === "string" ? s : s.name)).filter(Boolean);
+        if (!mounted) return;
+        setStores(storeNames);
+        await updateCounts(storeNames);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  async function updateCounts(storeNames) {
     const db = getFirestore();
-    const productosRef = collection(db, "Inventario", tienda.name, "PRODUCTOS");
-    const snap = await getDocs(productosRef);
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    setProductos(docs);
-    const triggers = docs.filter(d => d.alerta !== undefined && d.alerta !== null && Number(d.cantidad) < Number(d.alerta));
-    const dismissKey = getDismissKey();
-    const dismissed = typeof sessionStorage !== "undefined" && sessionStorage.getItem(dismissKey);
-    if (!dismissed && triggers.length > 0) {
-      setAlertaProductosTriggers(triggers);
-      setShowAlertaModal(true);
-      if (typeof onAlertaProducto === "function") {
-        triggers.forEach(t => onAlertaProducto(t, tienda));
+    const results = {};
+    await Promise.all(storeNames.map(async (store) => {
+      try {
+        const ref = collection(db, "Inventario", store, "PRODUCTOS");
+        const snap = await getDocs(ref);
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const triggers = docs.filter(d => d.alerta !== undefined && d.alerta !== null && Number(d.cantidad) < Number(d.alerta));
+        results[store] = triggers.length;
+      } catch (e) {
+        results[store] = 0;
       }
-    } else {
-      setAlertaProductosTriggers([]);
-      setShowAlertaModal(false);
-    }
+    }));
+    setAlertCounts(results);
   }
 
-  async function handleAgregarProducto(e) {
-    e.preventDefault();
-    if (!nuevoNombre.trim() || !nuevaCantidad.trim()) return;
-    setGuardando(true);
+  const openStoreInventario = (storeName) => {
+    setActiveStore({ name: storeName });
+    setOpenInventario(true);
+  };
+
+  const closeInventario = () => {
+    setOpenInventario(false);
+    setActiveStore(null);
+    updateCounts(stores);
+  };
+
+  async function abrirMovimientos(storeName) {
+    setActiveStore({ name: storeName });
+    setShowMovimientos(true);
+    setMovimientos([]);
+    setLoadingMovimientos(true);
     try {
       const db = getFirestore();
-      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", nuevoNombre.trim());
-      await setDoc(productoRef, {
-        nombre: nuevoNombre.trim(),
-        cantidad: Number(nuevaCantidad.trim()),
-        alerta: null,
-        paqueteria: null
+      const ref = collection(db, "Inventario", storeName, "MOVIMIENTOS");
+      const snap = await getDocs(ref);
+      // Exclude paqueteria movements from per-store view (they go to global paqueterias)
+      const docs = snap.docs
+        .map(d => ({ id: d.id, ...d.data(), tienda: storeName }))
+        .filter(item => item.tipo !== "paqueteria");
+      const ordered = docs.sort((a,b) => {
+        const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tb - ta;
       });
-      setNuevoNombre('');
-      setNuevaCantidad('');
-      setShowCampos(false);
-      await cargarProductos();
+      setMovimientos(ordered);
+    } catch (e) {
+      setMovimientos([]);
     } finally {
-      setGuardando(false);
+      setLoadingMovimientos(false);
     }
   }
 
-  async function handleGuardarCantidad() {
-    if (!modoEdicion?.producto || editCantidad === "") return;
-    setGuardando(true);
+  // New: abrir todos los movimientos de paqueterías (global)
+  async function abrirPaqueteriasGlobal() {
+    setShowPaqModal(true);
+    setPaqMovimientos([]);
+    setLoadingPaqMovs(true);
     try {
+      const sDocs = await getAllStores();
+      const storeNames = sDocs.map(s => (typeof s === "string" ? s : s.name)).filter(Boolean);
       const db = getFirestore();
-      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", modoEdicion.producto.id);
-      await updateDoc(productoRef, { cantidad: Number(editCantidad) });
-      setModoEdicion(null);
-      setEditCantidad('');
-      await cargarProductos();
+      const all = [];
+      await Promise.all(storeNames.map(async store => {
+        try {
+          const ref = collection(db, "Inventario", store, "MOVIMIENTOS");
+          const snap = await getDocs(ref);
+          snap.docs.forEach(d => {
+            const data = d.data();
+            if (data && data.tipo === "paqueteria") {
+              all.push({ id: d.id, tienda: store, ...data });
+            }
+          });
+        } catch (e) {
+          // ignore store errors
+        }
+      }));
+      const ordered = all.sort((a,b) => {
+        const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tb - ta;
+      });
+      setPaqMovimientos(ordered);
+    } catch (e) {
+      setPaqMovimientos([]);
     } finally {
-      setGuardando(false);
+      setLoadingPaqMovs(false);
     }
   }
 
-  async function handleEliminarProducto() {
-    if (!modoEdicion?.producto) return;
-    setGuardando(true);
+  const closeMovimientos = () => {
+    setShowMovimientos(false);
+    setMovimientos([]);
+    setSelectedDate("");
+  };
+
+  const closePaqModal = () => {
+    setShowPaqModal(false);
+    setPaqMovimientos([]);
+    setPaqSelectedDate("");
+  };
+
+  const filteredMovimientos = selectedDate
+    ? movimientos.filter(m => {
+        try {
+          const d = m.timestamp ? new Date(m.timestamp) : null;
+          if (!d || isNaN(d.getTime())) return false;
+          return d.toISOString().split("T")[0] === selectedDate;
+        } catch (e) {
+          return false;
+        }
+      })
+    : movimientos;
+
+  const filteredPaqMovimientos = paqSelectedDate
+    ? paqMovimientos.filter(m => {
+        try {
+          const d = m.timestamp ? new Date(m.timestamp) : null;
+          if (!d || isNaN(d.getTime())) return false;
+          return d.toISOString().split("T")[0] === paqSelectedDate;
+        } catch (e) {
+          return false;
+        }
+      })
+    : paqMovimientos;
+
+  function openConfirm(m) {
+    setConfirmMovimiento(m);
+    const today = new Date().toISOString().split("T")[0];
+    // Initialize with previously saved fechaLlegada/cantidadLlegada if present
+    setConfirmDate(m.fechaLlegada || today);
+    setConfirmQty(String(m.cantidadLlegada ?? m.cantidad ?? ""));
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmSubmit() {
+    if (!confirmMovimiento || !(showMovimientos || showPaqModal)) return;
+    if (!confirmDate || confirmQty === "") return;
+    setSavingConfirm(true);
     try {
       const db = getFirestore();
-      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", modoEdicion.producto.id);
-      await deleteDoc(productoRef);
-      setModoEdicion(null);
-      await cargarProductos();
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  async function handleGuardarAlerta() {
-    if (!modoEdicion?.producto) return;
-    setGuardando(true);
-    try {
-      const db = getFirestore();
-      const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", modoEdicion.producto.id);
-      if (alertaCantidad === "" || alertaCantidad === null) {
-        await updateDoc(productoRef, { alerta: null });
-      } else {
-        await updateDoc(productoRef, { alerta: Number(alertaCantidad) });
-      }
-      setModoEdicion(null);
-      setAlertaCantidad('');
-      await cargarProductos();
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  function addPaqRow() {
-    setPaqItems(prev => [...prev, { productoId: productos[0]?.id ?? "", cantidad: "" }]);
-  }
-
-  function removePaqRow(index) {
-    setPaqItems(prev => prev.filter((_, i) => i !== index));
-  }
-
-  function updatePaqRow(index, key, value) {
-    setPaqItems(prev => prev.map((r, i) => i === index ? { ...r, [key]: value } : r));
-  }
-
-  async function handleGuardarPaqueteriaGlobal() {
-    const validItems = paqItems
-      .map(i => ({ productoId: i.productoId, cantidad: Number(i.cantidad) || 0 }))
-      .filter(i => i.productoId && i.cantidad > 0);
-    if (validItems.length === 0) return;
-    const byProduct = validItems.reduce((acc, cur) => {
-      acc[cur.productoId] = (acc[cur.productoId] || 0) + cur.cantidad;
-      return acc;
-    }, {});
-    setGuardando(true);
-    try {
-      const db = getFirestore();
-      const paqPayload = (paqEmpresa.trim() === "" && paqCodigo.trim() === "") ? null : { empresa: paqEmpresa.trim(), codigo: paqCodigo.trim() };
+      const tiendaName = confirmMovimiento.tienda || activeStore?.name;
+      const mvDocRef = doc(db, "Inventario", tiendaName, "MOVIMIENTOS", confirmMovimiento.id);
       const actor = typeof user === "string" ? user : (user?.nombre ?? "unknown");
-      const updates = Object.entries(byProduct).map(async ([productoId, qty]) => {
-        const productoRef = doc(db, "Inventario", tienda.name, "PRODUCTOS", productoId);
-        const prodSnapBefore = await getDoc(productoRef);
-        const prodName = prodSnapBefore.exists() ? (prodSnapBefore.data().nombre ?? productoId) : productoId;
-        const payload = paqPayload ? { cantidad: increment(qty), paqueteria: paqPayload } : { cantidad: increment(qty) };
-        await updateDoc(productoRef, payload);
-        await addDoc(collection(db, "Inventario", tienda.name, "MOVIMIENTOS"), {
-          productoId,
-          productoNombre: prodName,
-          cantidad: qty,
-          tipo: "paqueteria",
-          empresa: paqPayload?.empresa ?? null,
-          codigo: paqPayload?.codigo ?? null,
-          usuario: actor,
-          confirmado: false,
-          timestamp: new Date().toISOString()
-        });
+      const arrivedQty = Number(confirmQty);
+      const originalQty = Number(confirmMovimiento.cantidad ?? 0);
+      const diff = arrivedQty - originalQty;
+
+      if (diff !== 0 && confirmMovimiento.productoId) {
+        const productoRef = doc(db, "Inventario", tiendaName, "PRODUCTOS", confirmMovimiento.productoId);
+        const prodSnap = await getDoc(productoRef);
+        if (prodSnap.exists()) {
+          await updateDoc(productoRef, { cantidad: increment(diff) });
+        }
+      }
+
+      await updateDoc(mvDocRef, {
+        confirmado: true,
+        fechaLlegada: confirmDate,
+        cantidadLlegada: arrivedQty,
+        diferencia: diff,
+        confirmadoPor: actor,
+        confirmadoTimestamp: new Date().toISOString()
       });
-      await Promise.all(updates);
-      setPaqEmpresa('');
-      setPaqCodigo('');
-      setPaqItems([{ productoId: productos[0]?.id ?? "", cantidad: "" }]);
-      setShowPaqueteriaGlobal(false);
-      await cargarProductos();
+
+      // update local lists (both possible sources)
+      setMovimientos(prev => prev.map(m => m.id === confirmMovimiento.id ? { ...m, confirmado: true, fechaLlegada: confirmDate, cantidadLlegada: arrivedQty, diferencia: diff, confirmadoPor: actor, confirmadoTimestamp: new Date().toISOString() } : m));
+      setPaqMovimientos(prev => prev.map(m => m.id === confirmMovimiento.id ? { ...m, confirmado: true, fechaLlegada: confirmDate, cantidadLlegada: arrivedQty, diferencia: diff, confirmadoPor: actor, confirmadoTimestamp: new Date().toISOString() } : m));
+
+      setConfirmOpen(false);
+      setConfirmMovimiento(null);
+      setConfirmDate("");
+      setConfirmQty("");
+    } catch (e) {
+      console.error("Error confirmando movimiento:", e);
     } finally {
-      setGuardando(false);
+      setSavingConfirm(false);
     }
   }
-
-  function handleCerrarAlerta() {
-    setShowAlertaModal(false);
-    setAlertaProductosTriggers([]);
-  }
-
-  function handleNoMostrarMas() {
-    const dismissKey = getDismissKey();
-    try {
-      if (typeof sessionStorage !== "undefined") sessionStorage.setItem(dismissKey, "1");
-    } catch (e) {}
-    handleCerrarAlerta();
-  }
-
-  if (!zoom) return null;
-  const isAdmin = user?.rol === "admin";
 
   return (
-    <div
-      className="fixed z-50 inset-0 flex items-center justify-center"
-      aria-modal
-      role="dialog"
-    >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ zIndex: 1 }} onClick={onClose} />
-      <div
-        className={`relative bg-white rounded-2xl shadow-2xl p-6 sm:p-8 min-w-[320px] min-h-[260px] max-w-3xl mx-auto transition-all duration-200 ${
-          open ? "scale-100 opacity-100 animate-zoomIn" : "animate-zoomOut"
-        }`}
-        onClick={e => e.stopPropagation()}
-        style={{ zIndex: 2, animationDuration: "220ms" }}
-      >
-        <button
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-900"
-          onClick={onClose}
-        >
-          <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2.3} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-        <h3 className="text-xl sm:text-2xl font-bold mb-4 text-center text-gray-800">
-          {tienda?.name ? `Inventario de ${tienda.name}` : "Inventario"}
-        </h3>
-        {isAdmin && !modoEdicion && (
-          <>
-            <div className="flex gap-3 mb-4">
-              <button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150"
-                onClick={() => setShowCampos(v => !v)}
-                disabled={guardando}
-              >
-                Agregar Productos
-              </button>
-              <button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all duration-150"
-                onClick={() => {
-                  setShowPaqueteriaGlobal(v => !v);
-                  if (paqItems.length === 0) setPaqItems([{ productoId: productos[0]?.id ?? "", cantidad: "" }]);
-                }}
-                disabled={guardando}
-              >
-                Agregar Paquetería
-              </button>
-            </div>
-            {showCampos && (
-              <form className="w-full flex flex-col gap-2 mb-3 items-center justify-center" onSubmit={handleAgregarProducto}>
-                <input
-                  type="text"
-                  className="border rounded-lg px-3 py-2 w-full"
-                  placeholder="Nombre"
-                  value={nuevoNombre}
-                  onChange={e => setNuevoNombre(e.target.value)}
-                  disabled={guardando}
-                  autoFocus
-                />
-                <input
-                  type="number"
-                  min="0"
-                  className="border rounded-lg px-3 py-2 w-full"
-                  placeholder="Cantidad"
-                  value={nuevaCantidad}
-                  onChange={e => setNuevaCantidad(e.target.value)}
-                  disabled={guardando}
-                />
-                <div className="flex w-full gap-2">
-                  <button
-                    type="button"
-                    className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={() => {
-                      setShowCampos(false);
-                      setNuevoNombre('');
-                      setNuevaCantidad('');
-                    }}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    disabled={guardando || !nuevoNombre.trim() || !nuevaCantidad.trim()}
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </form>
-            )}
-            {showPaqueteriaGlobal && (
-              <div className="w-full mb-4 p-4 bg-gray-50 rounded-lg border">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Productos y cantidades</label>
-                <div className="space-y-2 mb-3">
-                  {paqItems.map((row, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <select
-                        className="flex-1 border rounded-lg px-3 py-2"
-                        value={row.productoId}
-                        onChange={e => updatePaqRow(idx, "productoId", e.target.value)}
-                      >
-                        <option value="">Seleccione producto</option>
-                        {productos.map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        className="w-28 border rounded-lg px-3 py-2"
-                        placeholder="Cantidad"
-                        value={row.cantidad}
-                        onChange={e => updatePaqRow(idx, "cantidad", e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="px-3 py-2 bg-gray-200 rounded-lg"
-                        onClick={() => removePaqRow(idx)}
-                        disabled={paqItems.length === 1 || guardando}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 mb-3">
-                  <button type="button" className="bg-gray-100 px-3 py-2 rounded-lg" onClick={addPaqRow}>Añadir fila</button>
-                </div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Empresa de paquetería</label>
-                <input
-                  type="text"
-                  className="border rounded-lg px-3 py-2 w-full mb-3"
-                  placeholder="Ej. DHL"
-                  value={paqEmpresa}
-                  onChange={e => setPaqEmpresa(e.target.value)}
-                  disabled={guardando}
-                />
-                <label className="block text-sm font-medium text-gray-700 mb-2">Código / Tracking</label>
-                <input
-                  type="text"
-                  className="border rounded-lg px-3 py-2 w-full mb-3"
-                  placeholder="Ej. AWB123456"
-                  value={paqCodigo}
-                  onChange={e => setPaqCodigo(e.target.value)}
-                  disabled={guardando}
-                />
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-bold"
-                    onClick={() => { setShowPaqueteriaGlobal(false); setPaqEmpresa(''); setPaqCodigo(''); setPaqItems([{ productoId: productos[0]?.id ?? "", cantidad: "" }]); }}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold"
-                    onClick={handleGuardarPaqueteriaGlobal}
-                    disabled={guardando || paqItems.every(r => !r.productoId || !(Number(r.cantidad) > 0))}
-                  >
-                    Guardar paquetería
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-        {isAdmin && modoEdicion && (
-          <div className="my-3 p-3 bg-gray-50 rounded-lg border">
-            <h4 className="font-bold mb-2 text-center">{modoEdicion.producto.nombre}</h4>
-            {modoEdicion.accion === "menu" && (
-              <div className="flex flex-col gap-2">
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold"
-                  onClick={() => {
-                    setModoEdicion({ ...modoEdicion, accion: "editar" });
-                    setEditCantidad(modoEdicion.producto.cantidad || "");
-                  }}
-                  disabled={guardando}
-                >
-                  Editar
-                </button>
-                <button
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold"
-                  onClick={() => setModoEdicion({ ...modoEdicion, accion: "eliminar" })}
-                  disabled={guardando}
-                >
-                  Eliminar
-                </button>
-                <button
-                  className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-2 rounded-lg font-bold"
-                  onClick={() => {
-                    setAlertaCantidad(modoEdicion.producto.alerta ?? "");
-                    setModoEdicion({ ...modoEdicion, accion: "alerta" });
-                  }}
-                  disabled={guardando}
-                >
-                  Alerta
-                </button>
-                <button
-                  className="text-sm underline text-gray-500 hover:text-gray-800 mt-1"
-                  onClick={() => setModoEdicion(null)}
-                  disabled={guardando}
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
-            {modoEdicion.accion === "editar" && (
-              <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); handleGuardarCantidad(); }}>
-                <input
-                  type="number"
-                  min="0"
-                  className="border rounded-lg px-3 py-2 w-full"
-                  placeholder="Cantidad"
-                  value={editCantidad}
-                  onChange={e => setEditCantidad(e.target.value)}
-                  disabled={guardando}
-                  autoFocus
-                />
-                <div className="flex w-full gap-2">
-                  <button
-                    type="button"
-                    className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={() => setModoEdicion({ ...modoEdicion, accion: "menu" })}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    type="submit"
-                    disabled={guardando || !editCantidad}
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </form>
-            )}
-            {modoEdicion.accion === "eliminar" && (
-              <div className="flex flex-col gap-3 items-center">
-                <div className="text-center text-sm text-gray-700 mb-1">
-                  ¿Seguro que deseas <span className="font-bold text-red-600">eliminar</span> este producto?
-                </div>
-                <div className="flex w-full gap-2">
-                  <button
-                    className="bg-gray-200 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={() => setModoEdicion({ ...modoEdicion, accion: "menu" })}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow w-1/2"
-                    onClick={handleEliminarProducto}
-                    disabled={guardando}
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            )}
-            {modoEdicion.accion === "alerta" && (
-              <div className="flex flex-col items-center gap-4 p-2">
-                <div className="w-full">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad a programar</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="border rounded-lg px-3 py-2 w-full"
-                    placeholder="Ej. 10"
-                    value={alertaCantidad}
-                    onChange={e => setAlertaCantidad(e.target.value)}
-                    disabled={guardando}
-                  />
-                </div>
-                <div className="flex gap-2 w-full">
-                  <button
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-bold"
-                    onClick={() => setModoEdicion({ ...modoEdicion, accion: "menu" })}
-                    disabled={guardando}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold"
-                    onClick={handleGuardarAlerta}
-                    disabled={guardando || alertaCantidad === ""}
-                  >
-                    Guardar alerta
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <div>
-          <h4 className="font-semibold mb-2 text-gray-700">Productos:</h4>
-          <ul className="space-y-2">
-            {productos.length === 0 && (
-              <li className="text-gray-400 text-sm">No hay productos registrados.</li>
-            )}
-            {productos.map(p => {
-              const isBelow = p.alerta !== undefined && p.alerta !== null && Number(p.cantidad) < Number(p.alerta);
-              return (
-                <li
-                  key={p.id}
-                  className={`bg-gray-100 rounded px-3 py-2 text-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between transition ${isAdmin ? "cursor-pointer hover:bg-blue-50" : ""}`}
-                  onClick={() =>
-                    isAdmin
-                      ? setModoEdicion({ producto: p, accion: "menu" })
-                      : null
-                  }
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{p.nombre}</div>
-                    {isBelow && (
-                      <div className="text-xs text-red-600 mt-1">
-                        Alarma: Por debajo de {p.alerta}
-                      </div>
-                    )}
+    <div className="w-full max-w-3xl mx-auto p-4">
+      <h2 className="text-2xl font-bold text-center text-white mb-6">Inventarios</h2>
+
+      <div className="space-y-4">
+        {loading ? (
+          <div className="text-center text-sm text-gray-200">Cargando...</div>
+        ) : (
+          stores.map(store => {
+            const count = alertCounts[store] ?? 0;
+            const label = count === 1 ? `${count} Producto` : `${count} Productos`;
+            return (
+              <div key={store} className="flex items-center justify-between bg-white rounded-xl shadow-sm p-4">
+                <div className="text-gray-800 font-medium">{store}</div>
+                <div className="flex items-center gap-3">
+                  <div className={`px-3 py-1 rounded-full text-sm font-semibold ${count > 0 ? "bg-red-50 text-red-700 border border-red-100" : "bg-gray-100 text-gray-700"}`}>
+                    {label}
                   </div>
-                  {p.cantidad !== undefined && (
-                    <div className="mt-2 sm:mt-0">
-                      <span className="ml-4 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                        {p.cantidad}
-                      </span>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  <button
+                    onClick={() => abrirMovimientos(store)}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-3 py-2 rounded-lg shadow-sm"
+                  >
+                    Movimientos
+                  </button>
+                  <button
+                    onClick={() => openStoreInventario(store)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
+                  >
+                    Ver Inventario
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      {showAlertaModal && alertaProductosTriggers.length > 0 && (
-        <div className="fixed z-60 inset-0 flex items-center justify-center" onClick={e => e.stopPropagation()}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="bg-white rounded-2xl p-6 z-20 max-w-2xl w-[94vw] mx-4">
-            <h3 className="text-lg font-bold mb-4">Alertas de Inventario</h3>
-            <div className="grid gap-4 max-h-64 overflow-y-auto mb-4 grid-cols-1 md:grid-cols-2">
-              {alertaProductosTriggers.map(item => (
-                <div
-                  key={item.id}
-                  className="rounded-xl p-4 bg-gray-50"
-                  style={{
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    background: "#f7f8f9",
-                    boxShadow: "0 6px 18px rgba(0,0,0,0.12)"
-                  }}
-                >
-                  <div className="font-semibold text-gray-800 mb-1">{item.nombre}</div>
-                  <div className="text-sm text-gray-700">Stock actual: <span className="font-semibold">{item.cantidad}</span></div>
-                  <div className="text-sm text-gray-700">Umbral programado: <span className="font-semibold">{item.alerta}</span></div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+      {openInventario && activeStore && (
+        <Inventario
+          open={openInventario}
+          onClose={closeInventario}
+          tienda={activeStore}
+          user={user}
+        />
+      )}
+
+      {/* Movimientos por tienda modal */}
+      {showMovimientos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
+          <div className="relative bg-white rounded-2xl p-6 z-60 w-[92vw] max-w-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Movimientos - {activeStore ? activeStore.name : ""}</h3>
               <button
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-3 rounded-full shadow text-center"
-                onClick={handleNoMostrarMas}
+                onClick={abrirPaqueteriasGlobal}
+                className="px-3 py-1 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-800 font-semibold"
+                title="Ver movimientos de paqueterías (global)"
               >
-                No mostrar de nuevo (hasta iniciar sesión)
+                PAQUETERIAS
               </button>
+            </div>
+
+            <div className="mb-4 flex gap-2 items-center">
+              <label className="text-sm text-gray-600">Filtrar por fecha:</label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 text-sm"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+              />
+              <button className="ml-2 text-sm text-gray-600 underline" onClick={() => setSelectedDate("")}>Limpiar</button>
+            </div>
+
+            {loadingMovimientos ? (
+              <div className="text-sm text-gray-600">Cargando movimientos...</div>
+            ) : filteredMovimientos.length === 0 ? (
+              <div className="text-sm text-gray-600">No hay movimientos registrados para la fecha seleccionada.</div>
+            ) : (
+              <div className="space-y-3 max-h-72 overflow-y-auto">
+                {filteredMovimientos.map(m => (
+                  <div key={m.id} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-gray-800">{m.productoNombre || m.producto || m.descripcion || "Movimiento"}</div>
+                      <div className="text-xs text-gray-600">Tipo: {m.tipo || "—"}</div>
+                      <div className="text-xs text-gray-600">Cantidad registrada: {m.cantidad ?? "—"}</div>
+                      {m.empresa && <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>}
+                      {m.codigo && <div className="text-xs text-gray-600">Código: {m.codigo}</div>}
+                      {m.usuario && <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>}
+
+                      {m.confirmado ? (
+                        <div className="mt-2 text-xs text-green-700">
+                          <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
+                          <div>Fecha llegada: <span className="font-semibold text-gray-800">{formatDateDisplay(m.fechaLlegada)}</span></div>
+                          <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
+                          {typeof m.diferencia !== "undefined" && <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>}
+                        </div>
+                      ) : null}
+
+                      <div className="text-xs text-gray-500 mt-1">{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
+                    </div>
+                    <div className="ml-3 flex flex-col gap-2">
+                      {!m.confirmado && m.tipo === "paqueteria" && (
+                        <button
+                          className="px-3 py-1 bg-green-600 text-white rounded-md text-sm"
+                          onClick={() => openConfirm(m)}
+                        >
+                          Confirmar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end items-center gap-2">
               <button
-                className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-900 font-semibold px-5 py-2 rounded-lg shadow-sm"
-                onClick={handleCerrarAlerta}
+                onClick={closeMovimientos}
+                aria-label="Cerrar movimientos"
+                title="Cerrar"
+                className="px-4 py-2 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-700"
               >
                 Cerrar
               </button>
@@ -582,20 +367,103 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
           </div>
         </div>
       )}
-      <style>
-        {`
-        @keyframes zoomIn {
-          0% {transform: scale(0.85);opacity:0;}
-          100% {transform: scale(1);opacity:1;}
-        }
-        @keyframes zoomOut {
-          0% {transform: scale(1);opacity:1;}
-          100% {transform: scale(0.85);opacity:0;}
-        }
-        .animate-zoomIn{animation: zoomIn 0.22s cubic-bezier(.36,.54,.37,1.12);}
-        .animate-zoomOut{animation: zoomOut 0.22s cubic-bezier(.36,.54,.37,1.12);}
-        `}
-      </style>
+
+      {/* Global PAQUETERIAS modal */}
+      {showPaqModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={closePaqModal} />
+          <div className="relative bg-white rounded-2xl p-6 z-70 w-[92vw] max-w-3xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Paqueterías - Movimientos</h3>
+            </div>
+
+            <div className="mb-4 flex gap-2 items-center">
+              <label className="text-sm text-gray-600">Filtrar por fecha:</label>
+              <input
+                type="date"
+                className="border rounded px-2 py-1 text-sm"
+                value={paqSelectedDate}
+                onChange={e => setPaqSelectedDate(e.target.value)}
+              />
+              <button className="ml-2 text-sm text-gray-600 underline" onClick={() => setPaqSelectedDate("")}>Limpiar</button>
+            </div>
+
+            {loadingPaqMovs ? (
+              <div className="text-sm text-gray-600">Cargando movimientos de paqueterías...</div>
+            ) : filteredPaqMovimientos.length === 0 ? (
+              <div className="text-sm text-gray-600">No hay movimientos de paqueterías para la fecha seleccionada.</div>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {filteredPaqMovimientos.map(m => (
+                  <div key={`${m.tienda}_${m.id}`} className="p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-800">{m.productoNombre || m.producto || "Movimiento"}</div>
+                        <div className="text-xs text-gray-600">Tienda: <span className="font-medium text-gray-800">{m.tienda}</span></div>
+                        <div className="text-xs text-gray-600">Cantidad registrada: {m.cantidad ?? "—"}</div>
+                        {m.empresa && <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>}
+                        {m.codigo && <div className="text-xs text-gray-600">Código: {m.codigo}</div>}
+                        {m.usuario && <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>}
+
+                        {m.confirmado ? (
+                          <div className="mt-2 text-xs text-green-700">
+                            <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
+                            <div>Fecha llegada: <span className="font-semibold text-gray-800">{formatDateDisplay(m.fechaLlegada)}</span></div>
+                            <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
+                            {typeof m.diferencia !== "undefined" && <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="ml-3 flex flex-col gap-2">
+                        {!m.confirmado && (
+                          <button
+                            className="px-3 py-1 bg-green-600 text-white rounded-md text-sm"
+                            onClick={() => openConfirm(m)}
+                          >
+                            Confirmar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={closePaqModal}
+                className="px-4 py-2 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-700"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmOpen && confirmMovimiento && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
+          <div className="relative bg-white rounded-2xl p-6 z-80 w-[92vw] max-w-md">
+            <h4 className="font-semibold mb-3">Confirmar llegada - {confirmMovimiento.productoNombre || confirmMovimiento.productoId}</h4>
+            <label className="block text-sm text-gray-600 mb-1">Día de llegada</label>
+            <input type="date" className="border rounded px-2 py-1 w-full mb-3" value={confirmDate} onChange={e => setConfirmDate(e.target.value)} />
+            <label className="block text-sm text-gray-600 mb-1">Cantidad llegada</label>
+            <input type="number" min="0" className="border rounded px-2 py-1 w-full mb-4" value={confirmQty} onChange={e => setConfirmQty(e.target.value)} />
+
+            <div className="mb-3 text-sm text-gray-700">
+              Usuario que confirmará: <span className="font-semibold">{typeof user === "string" ? user : (user?.nombre ?? "unknown")}</span>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setConfirmOpen(false)} disabled={savingConfirm}>Cancelar</button>
+              <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={handleConfirmSubmit} disabled={savingConfirm || !confirmDate || confirmQty === ""}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
