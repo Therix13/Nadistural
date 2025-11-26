@@ -250,15 +250,13 @@ export default function PedidosTable({
       }}
     >
       <div
+        className="flex items-center justify-between w-full"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           width: "100%",
           padding: "0 32px 24px 32px",
         }}
       >
-        <div style={{ minWidth: 200, display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <FiltroFechaDropdown
             opciones={opcionesFiltro}
             value={filtroFecha}
@@ -273,9 +271,45 @@ export default function PedidosTable({
             Limpiar
           </button>
         </div>
-        <div>{ExportComponent}</div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Día anterior"
+            className="rounded-full transition hover:bg-gray-200 p-2"
+            onClick={() => {
+              if (!filtroFecha) return;
+              if (/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)) {
+                const d = new Date(filtroFecha);
+                d.setDate(d.getDate() - 1);
+                setFiltroFecha(d.toISOString().slice(0, 10));
+              }
+            }}
+            disabled={!filtroFecha || !/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)}
+          >
+            <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Día siguiente"
+            className="rounded-full transition hover:bg-gray-200 p-2"
+            onClick={() => {
+              if (!filtroFecha) return;
+              if (/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)) {
+                const d = new Date(filtroFecha);
+                d.setDate(d.getDate() + 1);
+                setFiltroFecha(d.toISOString().slice(0, 10));
+              }
+            }}
+            disabled={!filtroFecha || !/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)}
+          >
+            <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
-
       <div className="w-full">
         <div className="hidden sm:block">
           <table className="w-full rounded-xl bg-white" style={{ fontSize: "clamp(11px, 1.2vw, 1rem)" }}>

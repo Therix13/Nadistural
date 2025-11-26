@@ -26,6 +26,7 @@ export default function TiendasInventario({ user }) {
   const [movimientos, setMovimientos] = useState([]);
   const [loadingMovimientos, setLoadingMovimientos] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
+  const [expandedMov, setExpandedMov] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMovimiento, setConfirmMovimiento] = useState(null);
   const [confirmDate, setConfirmDate] = useState("");
@@ -142,6 +143,7 @@ export default function TiendasInventario({ user }) {
     setShowMovimientos(false);
     setMovimientos([]);
     setSelectedDate("");
+    setExpandedMov(null);
     setProductosInventario([]);
   };
 
@@ -378,9 +380,9 @@ export default function TiendasInventario({ user }) {
         />
       )}
       {showMovimientos && (
-        <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center transition-all">
+        <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
-          <div className="relative bg-white rounded-2xl p-2 sm:p-6 z-60 w-full max-w-lg sm:max-w-2xl pt-16 sm:pt-10 mx-auto my-2 flex flex-col items-center">
+          <div className="relative bg-white rounded-2xl p-2 sm:p-6 z-60 w-full sm:max-w-2xl max-w-full mx-auto my-0 sm:my-8 flex flex-col items-center pt-16 sm:pt-0 sm:max-h-[86vh] sm:overflow-y-auto">
             <div className="flex flex-col sm:flex-row w-full justify-between items-center mb-4 gap-2">
               <h3 className="text-lg font-bold text-center w-full sm:w-auto">Movimientos - {activeStore ? activeStore.name : ""}</h3>
               <button
@@ -403,7 +405,7 @@ export default function TiendasInventario({ user }) {
                 <button className="text-sm text-gray-600 underline ml-2" onClick={() => setSelectedDate("")}>Limpiar</button>
               </div>
             </div>
-            {resumenMovimientosPorFecha().length > 0 && (
+            {selectedDate && resumenMovimientosPorFecha().length > 0 && (
               <div className="mb-3 space-y-1 w-full">
                 <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
                 {resumenMovimientosPorFecha().map(prod => (
@@ -423,45 +425,68 @@ export default function TiendasInventario({ user }) {
             ) : (
               <div className="space-y-3 px-1 w-full flex flex-col items-center">
                 {filteredMovimientos.map(m => (
-                  <div key={m.id} className="p-3 bg-gray-50 rounded-lg border flex flex-col sm:flex-row justify-between items-start w-full max-w-xl">
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-800">{m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}</div>
-                      <div className="text-xs text-gray-600">Tipo: {m.tipo || "—"}</div>
-                      {typeof m.cantidad !== "undefined" && (
-                        <div className="text-xs text-gray-600">Cantidad registrada: {m.cantidad}</div>
-                      )}
-                      {typeof m.precio !== "undefined" && (
-                        <div className="text-xs text-gray-600">Precio unitario: {m.precio}</div>
-                      )}
-                      {m.cliente && (
-                        <div className="text-xs text-gray-600">Cliente: {m.cliente}</div>
-                      )}
-                      {m.fechaPedido && (
-                        <div className="text-xs text-gray-600">Fecha del pedido: {m.fechaPedido}</div>
-                      )}
-                      {m.empresa && <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>}
-                      {m.codigo && <div className="text-xs text-gray-600">Código: {m.codigo}</div>}
-                      {m.usuario && <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>}
-                      <div className="text-xs text-gray-500 mt-1">{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
-                      {m.confirmado ? (
-                        <div className="mt-2 text-xs text-green-700">
-                          <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
-                          <div>Fecha llegada: <span className="font-semibold text-gray-800">{m.fechaLlegada ?? "—"}</span></div>
-                          <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
-                          {typeof m.diferencia !== "undefined" && <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="flex-shrink-0 mt-2 sm:mt-0 sm:ml-3 flex flex-col gap-2 items-end w-full sm:w-auto">
-                      {isAdmin && (
-                        <button
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs"
-                          onClick={() => handleEliminarMovimiento(m)}
-                        >
-                          Eliminar
-                        </button>
-                      )}
-                    </div>
+                  <div
+                    key={m.id}
+                    className="w-full max-w-xl shadow border rounded-xl"
+                  >
+                    <button
+                      className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-white active:bg-gray-100 focus:outline-none"
+                      onClick={() =>
+                        setExpandedMov(expandedMov === m.id ? null : m.id)
+                      }
+                    >
+                      <span className="text-base font-semibold text-gray-800">
+                        {m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}
+                      </span>
+                      <span className="text-xs text-gray-700 font-normal">
+                        Cant.: <b>{m.cantidad}</b>
+                      </span>
+                      <span className="text-xs text-gray-600 ml-2">{m.fechaPedido ? m.fechaPedido.slice(0,10) : ""}</span>
+                      <span className="text-xs text-gray-600 ml-2">{m.usuario}</span>
+                      <svg
+                        className={`w-4 h-4 ml-3 transition-transform ${expandedMov === m.id ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+                    {expandedMov === m.id && (
+                      <div className="px-4 pb-4 pt-1 text-xs text-gray-700 bg-gray-50 rounded-b-xl">
+                        <div>Tipo: {m.tipo || "—"}</div>
+                        <div>Cantidad registrada: {m.cantidad}</div>
+                        {typeof m.precio !== "undefined" && (
+                          <div>Precio unitario: {m.precio}</div>
+                        )}
+                        {m.cliente && <div>Cliente: {m.cliente}</div>}
+                        <div>Fecha del pedido: {m.fechaPedido}</div>
+                        {m.empresa && <div>Empresa: {m.empresa}</div>}
+                        {m.codigo && <div>Código: {m.codigo}</div>}
+                        <div>Usuario que registró: {m.usuario}</div>
+                        <div>{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
+                        {m.confirmado && (
+                          <div className="mt-2 text-green-700">
+                            <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
+                            <div>Fecha llegada: <span className="font-semibold text-gray-800">{m.fechaLlegada ?? "—"}</span></div>
+                            <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
+                            {typeof m.diferencia !== "undefined" && (
+                              <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>
+                            )}
+                          </div>
+                        )}
+                        {isAdmin && (
+                          <div className="pt-2 flex">
+                            <button
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs"
+                              onClick={() => handleEliminarMovimiento(m)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
