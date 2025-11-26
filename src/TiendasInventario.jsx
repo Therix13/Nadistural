@@ -175,18 +175,75 @@ export default function TiendasInventario({ user }) {
       })
     : paqMovimientos;
 
-  function resumenMovimientosDelDia() {
-    if (!selectedDate || filteredMovimientos.length === 0 || productosInventario.length === 0) return [];
+  function resumenMovimientosPorFecha() {
+    const fechaResumen = selectedDate || new Date().toISOString().slice(0, 10);
+    if (productosInventario.length === 0) return [];
     const ventasPorProducto = {};
-    filteredMovimientos.forEach(mov => {
-      if (mov.tipo === "venta" && mov.productoId) {
+    movimientos.forEach(mov => {
+      if (
+        mov.tipo === "venta" &&
+        mov.productoId &&
+        mov.fechaPedido &&
+        mov.fechaPedido.slice(0, 10) === fechaResumen
+      ) {
         ventasPorProducto[mov.productoId] = (ventasPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
       }
     });
+    const ventasPosterioresPorProducto = {};
+    movimientos.forEach(mov => {
+      if (
+        mov.tipo === "venta" &&
+        mov.productoId &&
+        mov.fechaPedido &&
+        mov.fechaPedido.slice(0, 10) > fechaResumen
+      ) {
+        ventasPosterioresPorProducto[mov.productoId] = (ventasPosterioresPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
+      }
+    });
+    const allMoves = [...movimientos, ...paqMovimientos];
+    const entradasHoy = allMoves.filter(m =>
+      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) === fechaResumen
+    );
+    const entradasFuturas = allMoves.filter(m =>
+      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) > fechaResumen
+    );
+    const entradasPorProducto = {};
+    entradasHoy.forEach(m => {
+      const pid = m.productoId || m.producto || "_unknown";
+      let diff = 0;
+      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
+        diff = Number(m.diferencia);
+      else if (
+        typeof m.cantidadLlegada !== "undefined" &&
+        typeof m.cantidad !== "undefined"
+      )
+        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
+      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
+      entradasPorProducto[pid] = (entradasPorProducto[pid] || 0) + diff;
+    });
+    const entradasFuturasPorProducto = {};
+    entradasFuturas.forEach(m => {
+      const pid = m.productoId || m.producto || "_unknown";
+      let diff = 0;
+      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
+        diff = Number(m.diferencia);
+      else if (
+        typeof m.cantidadLlegada !== "undefined" &&
+        typeof m.cantidad !== "undefined"
+      )
+        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
+      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
+      entradasFuturasPorProducto[pid] = (entradasFuturasPorProducto[pid] || 0) + diff;
+    });
+
     return productosInventario.map(prod => {
       const venta = ventasPorProducto[prod.id] || 0;
-      const stockFinal = Number(prod.cantidad || 0);
-      const stockInicial = stockFinal + venta;
+      const ventasPosteriores = ventasPosterioresPorProducto[prod.id] || 0;
+      const entradas = entradasPorProducto[prod.id] || 0;
+      const entradasFuturas = entradasFuturasPorProducto[prod.id] || 0;
+      const currentStock = Number(prod.cantidad || 0);
+      const stockInicial = currentStock + venta + ventasPosteriores - entradas + entradasFuturas;
+      const stockFinal = stockInicial - venta;
       return {
         nombre: prod.nombre,
         venta,
@@ -302,7 +359,7 @@ export default function TiendasInventario({ user }) {
                   </button>
                   <button
                     onClick={() => openStoreInventario(store)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg shadow text-xs sm:text-base font-semibold min-w-[110px]"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-semibold shadow text-xs sm:text-base min-w-[110px]"
                   >
                     Ver Inventario
                   </button>
@@ -321,9 +378,9 @@ export default function TiendasInventario({ user }) {
         />
       )}
       {showMovimientos && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
-          <div className="relative bg-white rounded-2xl p-6 z-60 w-[97vw] max-w-2xl">
+          <div className="relative bg-white rounded-2xl p-6 z-60 w-[97vw] max-w-2xl pt-16 sm:pt-0">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold">Movimientos - {activeStore ? activeStore.name : ""}</h3>
               <button
@@ -344,10 +401,10 @@ export default function TiendasInventario({ user }) {
               />
               <button className="text-sm text-gray-600 underline" onClick={() => setSelectedDate("")}>Limpiar</button>
             </div>
-            {selectedDate && filteredMovimientos.length > 0 && (
+            {resumenMovimientosPorFecha().length > 0 && (
               <div className="mb-3 space-y-1">
-                <div className="font-semibold text-sm text-gray-800">Resumen del día:</div>
-                {resumenMovimientosDelDia().map(prod => (
+                <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
+                {resumenMovimientosPorFecha().map(prod => (
                   <div key={prod.nombre} className="text-xs text-gray-700 flex gap-4">
                     <span>{prod.nombre}:</span>
                     <span>Stock inicial: <b>{prod.stockInicial}</b></span>
@@ -362,7 +419,7 @@ export default function TiendasInventario({ user }) {
             ) : filteredMovimientos.length === 0 ? (
               <div className="text-sm text-gray-600">No hay movimientos registrados para la fecha seleccionada.</div>
             ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto">
+              <div className="space-y-3 px-1">
                 {filteredMovimientos.map(m => (
                   <div key={m.id} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
                     <div className="flex-1">
