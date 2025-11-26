@@ -378,11 +378,11 @@ export default function TiendasInventario({ user }) {
         />
       )}
       {showMovimientos && (
-        <div className="fixed inset-0 z-50 flex justify-center">
+        <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center transition-all">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
-          <div className="relative bg-white rounded-2xl p-6 z-60 w-[97vw] max-w-2xl pt-16 sm:pt-0">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Movimientos - {activeStore ? activeStore.name : ""}</h3>
+          <div className="relative bg-white rounded-2xl p-2 sm:p-6 z-60 w-full max-w-lg sm:max-w-2xl pt-16 sm:pt-10 mx-auto my-2 flex flex-col items-center">
+            <div className="flex flex-col sm:flex-row w-full justify-between items-center mb-4 gap-2">
+              <h3 className="text-lg font-bold text-center w-full sm:w-auto">Movimientos - {activeStore ? activeStore.name : ""}</h3>
               <button
                 onClick={() => abrirPaqueteriasTienda(activeStore?.name)}
                 className="px-3 py-1 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-800 font-semibold"
@@ -391,21 +391,23 @@ export default function TiendasInventario({ user }) {
                 PAQUETERIAS
               </button>
             </div>
-            <div className="mb-4 flex flex-wrap gap-2 items-center">
-              <label className="text-sm text-gray-600">Filtrar por fecha:</label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 text-sm"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-              />
-              <button className="text-sm text-gray-600 underline" onClick={() => setSelectedDate("")}>Limpiar</button>
+            <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center w-full">
+              <div className="flex items-center">
+                <label className="text-sm text-gray-600">Filtrar por fecha:</label>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 text-sm ml-2"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                />
+                <button className="text-sm text-gray-600 underline ml-2" onClick={() => setSelectedDate("")}>Limpiar</button>
+              </div>
             </div>
             {resumenMovimientosPorFecha().length > 0 && (
-              <div className="mb-3 space-y-1">
+              <div className="mb-3 space-y-1 w-full">
                 <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
                 {resumenMovimientosPorFecha().map(prod => (
-                  <div key={prod.nombre} className="text-xs text-gray-700 flex gap-4">
+                  <div key={prod.nombre} className="text-xs text-gray-700 flex flex-wrap sm:flex-nowrap gap-4">
                     <span>{prod.nombre}:</span>
                     <span>Stock inicial: <b>{prod.stockInicial}</b></span>
                     <span>Venta: <b>{prod.venta}</b></span>
@@ -415,13 +417,13 @@ export default function TiendasInventario({ user }) {
               </div>
             )}
             {loadingMovimientos ? (
-              <div className="text-sm text-gray-600">Cargando movimientos...</div>
+              <div className="text-sm text-gray-600 w-full text-center">Cargando movimientos...</div>
             ) : filteredMovimientos.length === 0 ? (
-              <div className="text-sm text-gray-600">No hay movimientos registrados para la fecha seleccionada.</div>
+              <div className="text-sm text-gray-600 w-full text-center">No hay movimientos registrados para la fecha seleccionada.</div>
             ) : (
-              <div className="space-y-3 px-1">
+              <div className="space-y-3 px-1 w-full flex flex-col items-center">
                 {filteredMovimientos.map(m => (
-                  <div key={m.id} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
+                  <div key={m.id} className="p-3 bg-gray-50 rounded-lg border flex flex-col sm:flex-row justify-between items-start w-full max-w-xl">
                     <div className="flex-1">
                       <div className="text-sm font-semibold text-gray-800">{m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}</div>
                       <div className="text-xs text-gray-600">Tipo: {m.tipo || "—"}</div>
@@ -450,7 +452,7 @@ export default function TiendasInventario({ user }) {
                         </div>
                       ) : null}
                     </div>
-                    <div className="ml-3 flex flex-col gap-2">
+                    <div className="flex-shrink-0 mt-2 sm:mt-0 sm:ml-3 flex flex-col gap-2 items-end w-full sm:w-auto">
                       {isAdmin && (
                         <button
                           className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs"
@@ -464,7 +466,7 @@ export default function TiendasInventario({ user }) {
                 ))}
               </div>
             )}
-            <div className="mt-4 flex justify-end items-center gap-2">
+            <div className="mt-4 flex w-full justify-end items-center gap-2">
               <button
                 onClick={closeMovimientos}
                 aria-label="Cerrar movimientos"
