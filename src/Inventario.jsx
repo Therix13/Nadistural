@@ -211,18 +211,18 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
   const isAdmin = user?.rol === "admin";
 
   return (
-    <div
-      className="fixed z-50 inset-0 flex items-center justify-center"
-      aria-modal
-      role="dialog"
-    >
+    <div className="fixed z-50 inset-0 flex items-start sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ zIndex: 1 }} onClick={onClose} />
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl p-2 sm:p-6 min-w-[320px] min-h-[260px] max-w-md w-full mx-auto transition-all duration-200 ${
-          open ? "scale-100 opacity-100 animate-zoomIn" : "animate-zoomOut"
-        }`}
+        className={`relative bg-white rounded-2xl shadow-2xl p-2 sm:p-6 w-full sm:max-w-md mx-auto sm:my-10 my-0 flex flex-col min-h-[355px]`}
         onClick={e => e.stopPropagation()}
-        style={{ zIndex: 2, animationDuration: "220ms" }}
+        style={{
+          maxHeight: '96vh',
+          marginTop: 'max(60px, 6vh)',
+          marginBottom: 'max(16px, 3vh)',
+          zIndex: 2,
+          animationDuration: "220ms"
+        }}
       >
         <button
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-900"
@@ -505,43 +505,51 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
             )}
           </div>
         )}
-        <div>
+        <div className="flex flex-col flex-1 h-fit min-h-[120px] mt-2">
           <h4 className="font-semibold mb-2 text-gray-700 text-sm sm:text-base">Productos:</h4>
-          <ul className="space-y-2">
-            {productos.length === 0 && (
-              <li className="text-gray-400 text-sm">No hay productos registrados.</li>
-            )}
-            {productos.map(p => {
-              const isBelow = p.alerta !== undefined && p.alerta !== null && Number(p.cantidad) < Number(p.alerta);
-              return (
-                <li
-                  key={p.id}
-                  className={`bg-gray-100 rounded px-3 py-2 text-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between transition ${isAdmin ? "cursor-pointer hover:bg-blue-50" : ""}`}
-                  onClick={() =>
-                    isAdmin
-                      ? setModoEdicion({ producto: p, accion: "menu" })
-                      : null
-                  }
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{p.nombre}</div>
-                    {isBelow && (
-                      <div className="text-xs text-red-600 mt-1">
-                        Alarma: Por debajo de {p.alerta}
+          <div
+            className="overflow-y-auto scrollbar-thin pr-1"
+            style={{
+              minHeight: "130px",
+              maxHeight: "37vh"
+            }}
+          >
+            <ul className="space-y-2">
+              {productos.length === 0 && (
+                <li className="text-gray-400 text-sm px-2">No hay productos registrados.</li>
+              )}
+              {productos.map(p => {
+                const isBelow = p.alerta !== undefined && p.alerta !== null && Number(p.cantidad) < Number(p.alerta);
+                return (
+                  <li
+                    key={p.id}
+                    className={`bg-gray-100 rounded px-3 py-2 text-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between transition ${isAdmin ? "cursor-pointer hover:bg-blue-50" : ""}`}
+                    onClick={() =>
+                      isAdmin
+                        ? setModoEdicion({ producto: p, accion: "menu" })
+                        : null
+                    }
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">{p.nombre}</div>
+                      {isBelow && (
+                        <div className="text-xs text-red-600 mt-1">
+                          Alarma: Por debajo de {p.alerta}
+                        </div>
+                      )}
+                    </div>
+                    {p.cantidad !== undefined && (
+                      <div className="mt-2 sm:mt-0">
+                        <span className="ml-4 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                          {p.cantidad}
+                        </span>
                       </div>
                     )}
-                  </div>
-                  {p.cantidad !== undefined && (
-                    <div className="mt-2 sm:mt-0">
-                      <span className="ml-4 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
-                        {p.cantidad}
-                      </span>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </div>
       {showAlertaModal && alertaProductosTriggers.length > 0 && (
