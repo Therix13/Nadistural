@@ -58,7 +58,11 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues, pr
   if (!open) return null;
 
   const handleAddProducto = () => {
-    setProductos([...productos, { producto: "", cantidad: 1 }]);
+    setProductos(prev => [...prev, { producto: "", cantidad: 1 }]);
+    setTimeout(() => {
+      const lastInput = document.querySelector('[data-producto-idx="' + (productos.length) + '"]');
+      if (lastInput) lastInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
   };
 
   const handleRemoveProducto = (idx) => {
@@ -205,6 +209,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues, pr
                     onChange={(e) =>
                       handleProductoChange(idx, "producto", e.target.value)
                     }
+                    data-producto-idx={idx}
                   >
                     <option value="">Selecciona un producto</option>
                     {opcionesProductos.map((nombre, i) => (
@@ -248,6 +253,7 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues, pr
                 min={0}
                 value={precio}
                 onChange={(e) => setPrecio(e.target.value)}
+                onWheel={e => e.target.blur()}
               />
             </label>
             <label className="flex flex-col w-full gap-1">
