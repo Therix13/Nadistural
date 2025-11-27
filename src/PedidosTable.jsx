@@ -75,17 +75,17 @@ function FiltroFechaDropdown({ opciones, value, onChange }) {
 }
 
 function sortPedidosByFechaAndEstado(pedidos) {
-  const estadosFinales = ["pendiente", "cancelado"];
-  return [...pedidos].sort((a, b) => {
-    const aFinal = estadosFinales.includes(a.estado);
-    const bFinal = estadosFinales.includes(b.estado);
-    if (!aFinal && !bFinal) {
-      return new Date(b.fecha) - new Date(a.fecha);
-    }
-    if (aFinal && !bFinal) return 1;
-    if (!aFinal && bFinal) return -1;
-    return new Date(b.fecha) - new Date(a.fecha);
-  });
+  const nuevos = pedidos
+    .filter(p => p.estado === "" || p.estado === undefined)
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return dateA - dateB;
+    });
+  const otros = pedidos
+    .filter(p => p.estado !== "" && p.estado !== undefined)
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  return [...nuevos, ...otros];
 }
 
 const campos = [
@@ -118,40 +118,18 @@ function PedidoDetalleModalMobile({
   if (!pedido || !open) return null;
   return (
     <div className="fixed z-50 inset-0 bg-black/40 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-[95vw] max-w-md max-h-screen overflow-y-auto relative">
-        <button
-          className="absolute top-2 right-2 text-gray-400 hover:text-gray-900"
-          onClick={onClose}
-          style={{ display: hideClose ? "none" : undefined }}
-        >
-          <svg className="w-7 h-7 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-        <div className="text-left space-y-2">
-          <div><span className="font-semibold">Cliente:</span> {pedido.nombre}</div>
-          <div><span className="font-semibold">Calle y número:</span> {pedido.calleNumero}</div>
-          <div><span className="font-semibold">Colonia:</span> {pedido.colonia}</div>
-          <div><span className="font-semibold">Municipio:</span> {pedido.municipio}</div>
-          <div><span className="font-semibold">Código Postal:</span> {pedido.codigoPostal}</div>
-          <div><span className="font-semibold">Entre calles:</span> {pedido.entreCalles}</div>
-          <div><span className="font-semibold">Teléfono:</span> {pedido.telefono}</div>
-          <div><span className="font-semibold">Productos:</span> {Array.isArray(pedido.productos)
-            ? pedido.productos.map((p, ix) => (
-                <span key={ix}>
-                  <span className="font-semibold">{p.cantidad}</span>{" "}
-                  <span>{p.producto}</span>
-                  {ix < pedido.productos.length - 1 ? ", " : ""}
-                </span>
-              ))
-            : pedido.productos}
-          </div>
-          <div><span className="font-semibold">Precio:</span> {pedido.precio}</div>
-          <div><span className="font-semibold">Nota:</span> {pedido.nota}</div>
-          <div><span className="font-semibold">Fecha:</span> {pedido.fecha}</div>
-          <div><span className="font-semibold">Vendedor:</span> {pedido.vendedor}</div>
-        </div>
-        <div className="flex space-x-6 items-center justify-center mt-6">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-[95vw] max-w-md max-h-screen overflow-y-auto relative pt-20 sm:pt-10">
+        <div className="flex space-x-6 items-center justify-center mt-6 mb-4">
+          <button
+            className="bg-gray-200 hover:bg-gray-300 rounded-full p-3 flex items-center justify-center sm:hidden"
+            aria-label="Regresar"
+            onClick={onClose}
+            style={{ minWidth: 48, minHeight: 48 }}
+          >
+            <svg className="h-7 w-7 text-gray-800" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
           {canEditDeleteConfirm(pedido.estado, isAdmin, pedido.metodoPago) && (
             <>
               <button
@@ -186,6 +164,29 @@ function PedidoDetalleModalMobile({
               </button>
             </>
           )}
+        </div>
+        <div className="text-left space-y-2">
+          <div><span className="font-semibold">Cliente:</span> {pedido.nombre}</div>
+          <div><span className="font-semibold">Calle y número:</span> {pedido.calleNumero}</div>
+          <div><span className="font-semibold">Colonia:</span> {pedido.colonia}</div>
+          <div><span className="font-semibold">Municipio:</span> {pedido.municipio}</div>
+          <div><span className="font-semibold">Código Postal:</span> {pedido.codigoPostal}</div>
+          <div><span className="font-semibold">Entre calles:</span> {pedido.entreCalles}</div>
+          <div><span className="font-semibold">Teléfono:</span> {pedido.telefono}</div>
+          <div><span className="font-semibold">Productos:</span> {Array.isArray(pedido.productos)
+            ? pedido.productos.map((p, ix) => (
+                <span key={ix}>
+                  <span className="font-semibold">{p.cantidad}</span>{" "}
+                  <span>{p.producto}</span>
+                  {ix < pedido.productos.length - 1 ? ", " : ""}
+                </span>
+              ))
+            : pedido.productos}
+          </div>
+          <div><span className="font-semibold">Precio:</span> {pedido.precio}</div>
+          <div><span className="font-semibold">Nota:</span> {pedido.nota}</div>
+          <div><span className="font-semibold">Fecha:</span> {pedido.fecha}</div>
+          <div><span className="font-semibold">Vendedor:</span> {pedido.vendedor}</div>
         </div>
       </div>
     </div>

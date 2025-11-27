@@ -97,17 +97,38 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues, pr
   );
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[500] flex items-start justify-center bg-black/30 backdrop-blur-sm">
       <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative flex flex-col items-center justify-center w-full h-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
+      <div className="relative flex flex-col items-center justify-start w-full"
+        style={{
+          left: 0,
+          right: 0,
+          zIndex: 511,
+          top: 0,
+        }}
+      >
+        <div
+          className="bg-white rounded-b-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
           style={{
             maxHeight: "95vh",
             overflowY: "auto",
             width: "95vw",
-            minWidth: "280px"
+            minWidth: "280px",
+            position: "relative",
+            top: 0,
           }}
         >
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute left-4 top-4 bg-white shadow-md rounded-full p-2 z-50 flex sm:hidden"
+            aria-label="Cerrar"
+            style={{ border: "1.5px solid #eee" }}
+          >
+            <svg className="h-7 w-7 text-gray-800" fill="none" stroke="currentColor" strokeWidth={2.6} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
           <h2 className="text-xl font-semibold text-slate-900 mb-4">
             {initialValues ? "Editar pedido" : "Nuevo pedido"}
           </h2>

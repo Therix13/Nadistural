@@ -9,7 +9,8 @@ import {
   query,
   where,
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  Timestamp
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -100,7 +101,14 @@ export async function deleteStoreFromFirestore(storeName) {
 export function onPedidosByTiendaRealtime(storeName, callback) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
   return onSnapshot(pedidosCol, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    callback(snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    }));
   });
 }
 
@@ -113,13 +121,20 @@ export function onPedidosCounterByTiendaRealtime(storeName, callback) {
 
 export async function addPedidoToTienda(storeName, pedido) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
-  await addDoc(pedidosCol, pedido);
+  await addDoc(pedidosCol, { ...pedido, createdAt: Timestamp.now() });
 }
 
 export async function getPedidosByTienda(storeName) {
   const pedidosCol = collection(db, `tiendas/${storeName}/pedidos`);
   const snap = await getDocs(pedidosCol);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+    };
+  });
 }
 
 export async function getPedidosCounterByTienda(storeName) {
@@ -158,7 +173,6 @@ export async function deletePedidoFromTienda(storeName, pedidoId) {
 
 export async function updatePedidoInTienda(storeName, pedidoId, data) {
   if (!storeName || !pedidoId) return;
-  console.log("updatePedidoInTienda params:", storeName, pedidoId, data);
   const pedidoRef = doc(db, `tiendas/${storeName}/pedidos/${pedidoId}`);
   try {
     await updateDoc(pedidoRef, data);

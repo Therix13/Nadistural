@@ -18,7 +18,7 @@ export default function PedidosTienda({ tienda }) {
   }, [tienda]);
 
   return (
-    <div className="p-6 bg-white rounded-2xl max-w-md mx-auto shadow-2xl">
+    <div className="p-6 bg-white rounded-2xl max-w-md mx-auto shadow-2xl" style={{ marginTop: "64px" }}>
       <button
         className="mb-2 text-slate-600 hover:text-slate-900"
         onClick={() => {}}
