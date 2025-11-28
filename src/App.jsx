@@ -99,8 +99,6 @@ export default function App() {
   const [confirmIdx, setConfirmIdx] = useState(null);
   const [productosTienda, setProductosTienda] = useState([]);
 
-  console.log("VISIBLE view:", view, "currentUserObj:", currentUserObj);
-
   useEffect(() => {
     const storedUsername = localStorage.getItem("sesion_usuario");
     if (storedUsername && !user) {
@@ -423,6 +421,9 @@ export default function App() {
         metodoPago: metodoPagoArg
       };
       if (data.metodoPago === undefined) delete data.metodoPago;
+      Object.keys(data).forEach(k => {
+        if (typeof data[k] === "undefined") delete data[k];
+      });
       await updatePedidoInTienda(selectedStore, pedido.id, data);
 
       if (metodoPagoArg === "Efectivo" || metodoPagoArg === "Transferencia") {
@@ -685,7 +686,6 @@ export default function App() {
               )}
               {view === "inventario" && (
                 (() => {
-                  console.log("Mostrando TiendasInventario: (user)", currentUserObj);
                   return <TiendasInventario user={currentUserObj} />;
                 })()
               )}
