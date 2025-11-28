@@ -405,17 +405,20 @@ export default function TiendasInventario({ user }) {
                 <button className="text-sm text-gray-600 underline ml-2" onClick={() => setSelectedDate("")}>Limpiar</button>
               </div>
             </div>
-            {selectedDate && resumenMovimientosPorFecha().length > 0 && (
+            {selectedDate && resumenMovimientosPorFecha().filter(prod => prod.venta !== 0).length > 0 && (
               <div className="mb-3 space-y-1 w-full">
                 <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
-                {resumenMovimientosPorFecha().map(prod => (
-                  <div key={prod.nombre} className="text-xs text-gray-700 flex flex-wrap sm:flex-nowrap gap-4">
-                    <span>{prod.nombre}:</span>
-                    <span>Stock inicial: <b>{prod.stockInicial}</b></span>
-                    <span>Venta: <b>{prod.venta}</b></span>
-                    <span>Stock final: <b>{prod.stockFinal}</b></span>
-                  </div>
-                ))}
+                {resumenMovimientosPorFecha()
+                  .filter(prod => prod.venta !== 0)
+                  .map(prod => (
+                    <div key={prod.nombre} className="text-xs text-gray-700 flex flex-wrap sm:flex-nowrap gap-4">
+                      <span>{prod.nombre}:</span>
+                      <span>Stock inicial: <b>{prod.stockInicial}</b></span>
+                      <span>Venta: <b>{prod.venta}</b></span>
+                      <span>Stock final: <b>{prod.stockFinal}</b></span>
+                    </div>
+                  ))
+                }
               </div>
             )}
             {loadingMovimientos ? (

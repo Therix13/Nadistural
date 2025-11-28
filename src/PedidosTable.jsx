@@ -336,7 +336,7 @@ export default function PedidosTable({
                         {campos.map(campo => (
                           <td
                             key={campo.key}
-                            className={`px-2 py-2 text-left align-top ${tdClass}`}
+                            className={`px-2 py-2 text-left align-top ${tdClass}${(campo.key === "nombre" && pedido.estado === "reagendar") ? " bg-yellow-200" : ""}`}
                             style={{ whiteSpace: "normal" }}
                             title={pedido[campo.key]?.toString() || ""}
                           >
@@ -416,7 +416,7 @@ export default function PedidosTable({
                   onClick={() => setDetalle(pedido)}
                 >
                   <div className="flex flex-col">
-                    <div className="font-semibold text-lg">{pedido.nombre}</div>
+                    <div className={`font-semibold text-lg${pedido.estado === "reagendar" ? " bg-yellow-200" : ""}`}>{pedido.nombre}</div>
                     <div className="text-gray-600">{pedido.telefono}</div>
                   </div>
                 </div>

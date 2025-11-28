@@ -416,10 +416,10 @@ export default function App() {
     }
     try {
       const data = {
-        ...pedido,
-        estado: "confirmado",
-        metodoPago: metodoPagoArg
-      };
+  ...pedido,
+  estado: "reagendar",
+  fecha: nuevaFecha
+};
       if (data.metodoPago === undefined) delete data.metodoPago;
       Object.keys(data).forEach(k => {
         if (typeof data[k] === "undefined") delete data[k];
@@ -461,30 +461,30 @@ export default function App() {
   };
 
   const handleReagendarConfirm = async (nuevaFecha) => {
-    const pedido = pedidosDeEstaTienda[reagendarIdx];
-    if (!pedido || !selectedStore) {
-      setShowReagendarPopup(false);
-      setReagendarIdx(null);
-      setConfirmIdx(null);
-      return;
-    }
-    try {
-      const data = {
-        ...pedido,
-        estado: "pendiente",
-        fecha: nuevaFecha
-      };
-      delete data.metodoPago;
-      await updatePedidoInTienda(selectedStore, pedido.id, data);
-      setShowReagendarPopup(false);
-      setReagendarIdx(null);
-      setConfirmIdx(null);
-    } catch (err) {
-      setShowReagendarPopup(false);
-      setReagendarIdx(null);
-      setConfirmIdx(null);
-    }
-  };
+  const pedido = pedidosDeEstaTienda[reagendarIdx];
+  if (!pedido || !selectedStore) {
+    setShowReagendarPopup(false);
+    setReagendarIdx(null);
+    setConfirmIdx(null);
+    return;
+  }
+  try {
+    const data = {
+      ...pedido,
+      estado: "reagendar",
+      fecha: nuevaFecha
+    };
+    delete data.metodoPago;
+    await updatePedidoInTienda(selectedStore, pedido.id, data);
+    setShowReagendarPopup(false);
+    setReagendarIdx(null);
+    setConfirmIdx(null);
+  } catch (err) {
+    setShowReagendarPopup(false);
+    setReagendarIdx(null);
+    setConfirmIdx(null);
+  }
+};
 
   const handleReagendarCancel = () => {
     setShowReagendarPopup(false);
