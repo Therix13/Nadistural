@@ -125,9 +125,7 @@ export default function App() {
           const existing = mappedUsers.find((u) => u.nombre === user);
           if (existing) setCurrentUserObj(existing);
         }
-      } catch (err) {
-        console.error("Error cargando datos desde Firestore:", err);
-      }
+      } catch (err) {}
     }
     load();
   }, [user]);
@@ -222,7 +220,6 @@ export default function App() {
       }
       return { ok: false, message: "Usuario o contraseña incorrectos." };
     } catch (err) {
-      console.error("handleLogin error:", err);
       return { ok: false, message: "Error al autenticar. Revisa la consola." };
     }
   };
@@ -272,9 +269,7 @@ export default function App() {
           setCurrentUserObj(createdUser);
         }
       }
-    } catch (err) {
-      console.error("handleAddUser error:", err);
-    }
+    } catch (err) {}
   };
 
   const handleUpdateUser = async (updatedUser) => {
@@ -336,9 +331,7 @@ export default function App() {
           });
         });
       }
-    } catch (err) {
-      console.error("handleUpdateUser error:", err);
-    }
+    } catch (err) {}
   };
 
   const handleAddStore = async (storeName) => {
@@ -348,9 +341,7 @@ export default function App() {
       if (stores.includes(s)) return;
       const created = await addStoreToFirestore(s);
       setStores((prev) => [...prev, created.name]);
-    } catch (err) {
-      console.error("handleAddStore error:", err);
-    }
+    } catch (err) {}
   };
 
   const handleSelectStore = async (storeName) => {
@@ -366,16 +357,12 @@ export default function App() {
         await updatePedidoInTienda(selectedStore, pedidoActual.id, { ...pedido, vendedor: user });
         setShowPedidoModal(false);
         setEditingIndex(null);
-      } catch (err) {
-        console.error("Error editando pedido en Firestore:", err);
-      }
+      } catch (err) {}
     } else {
       try {
         await addPedidoToTienda(selectedStore, { ...pedido, vendedor: user });
         setShowPedidoModal(false);
-      } catch (err) {
-        console.error("Error guardando el pedido en Firestore:", err);
-      }
+      } catch (err) {}
     }
   };
 
@@ -384,9 +371,7 @@ export default function App() {
     try {
       await deletePedidoFromTienda(selectedStore, pedidoId);
       setEditingIndex(null);
-    } catch (err) {
-      console.error("Error eliminando el pedido de Firestore:", err);
-    }
+    } catch (err) {}
   };
 
   const handleEditarPedido = (pedidoId) => {
@@ -416,10 +401,10 @@ export default function App() {
     }
     try {
       const data = {
-  ...pedido,
-  estado: "reagendar",
-  fecha: nuevaFecha
-};
+        ...pedido,
+        estado: "confirmado",
+        metodoPago: metodoPagoArg
+      };
       if (data.metodoPago === undefined) delete data.metodoPago;
       Object.keys(data).forEach(k => {
         if (typeof data[k] === "undefined") delete data[k];
@@ -461,30 +446,30 @@ export default function App() {
   };
 
   const handleReagendarConfirm = async (nuevaFecha) => {
-  const pedido = pedidosDeEstaTienda[reagendarIdx];
-  if (!pedido || !selectedStore) {
-    setShowReagendarPopup(false);
-    setReagendarIdx(null);
-    setConfirmIdx(null);
-    return;
-  }
-  try {
-    const data = {
-      ...pedido,
-      estado: "reagendar",
-      fecha: nuevaFecha
-    };
-    delete data.metodoPago;
-    await updatePedidoInTienda(selectedStore, pedido.id, data);
-    setShowReagendarPopup(false);
-    setReagendarIdx(null);
-    setConfirmIdx(null);
-  } catch (err) {
-    setShowReagendarPopup(false);
-    setReagendarIdx(null);
-    setConfirmIdx(null);
-  }
-};
+    const pedido = pedidosDeEstaTienda[reagendarIdx];
+    if (!pedido || !selectedStore) {
+      setShowReagendarPopup(false);
+      setReagendarIdx(null);
+      setConfirmIdx(null);
+      return;
+    }
+    try {
+      const data = {
+        ...pedido,
+        estado: "reagendar",
+        fecha: nuevaFecha
+      };
+      delete data.metodoPago;
+      await updatePedidoInTienda(selectedStore, pedido.id, data);
+      setShowReagendarPopup(false);
+      setReagendarIdx(null);
+      setConfirmIdx(null);
+    } catch (err) {
+      setShowReagendarPopup(false);
+      setReagendarIdx(null);
+      setConfirmIdx(null);
+    }
+  };
 
   const handleReagendarCancel = () => {
     setShowReagendarPopup(false);
@@ -501,9 +486,7 @@ export default function App() {
         setCurrentUserObj(null);
         localStorage.removeItem("sesion_usuario");
       }
-    } catch (err) {
-      console.error("Error eliminando el usuario de Firestore:", err);
-    }
+    } catch (err) {}
   };
 
   const handleDeleteStore = async (storeName) => {
@@ -516,9 +499,7 @@ export default function App() {
         return nuevo;
       });
       if (selectedStore === storeName) setSelectedStore(null);
-    } catch (err) {
-      console.error("Error eliminando la tienda de Firestore:", err);
-    }
+    } catch (err) {}
   };
 
   const isAdmin = currentUserObj?.rol === "admin" || user === "admin";
