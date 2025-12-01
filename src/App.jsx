@@ -516,24 +516,59 @@ export default function App() {
   let pedidosFiltrados = pedidosDeEstaTiendaOrdenados;
   if (filtroFecha === "pendientes") {
     pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
-      p => p.estado === "pendiente"
+      p =>
+        ((p.estado || '').trim().toLowerCase() === "pendiente") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "pendiente"
+        )
     );
   } else if (filtroFecha === "cancelado") {
     pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
-      p => p.estado === "cancelado"
+      p =>
+        ((p.estado || '').trim().toLowerCase() === "cancelado") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "cancelado"
+        )
     );
   } else if (
     filtroFecha &&
     filtroFecha !== "ninguna" &&
     filtroFecha !== "" &&
-    filtroFecha !== "pendientes" &&
     filtroFecha !== "cancelado"
   ) {
     pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
-      p => p.fecha === filtroFecha
+      p => p.fecha === filtroFecha && !(
+        ((p.estado || '').trim().toLowerCase() === "pendiente") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "pendiente"
+        ) ||
+        ((p.estado || '').trim().toLowerCase() === "cancelado") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "cancelado"
+        )
+      )
     );
   } else if (filtroFecha === "ninguna") {
     pedidosFiltrados = [];
+  } else {
+    pedidosFiltrados = pedidosDeEstaTiendaOrdenados.filter(
+      p => !(
+        ((p.estado || '').trim().toLowerCase() === "pendiente") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "pendiente"
+        ) ||
+        ((p.estado || '').trim().toLowerCase() === "cancelado") ||
+        (
+          (p.estado || '').trim().toLowerCase() === "confirmado" &&
+          (p.metodoPago || '').trim().toLowerCase() === "cancelado"
+        )
+      )
+    );
   }
 
   const pedidoAEditar = editingIndex !== null ? pedidosDeEstaTienda[editingIndex] : undefined;
