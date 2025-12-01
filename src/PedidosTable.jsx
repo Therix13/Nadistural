@@ -217,6 +217,11 @@ export default function PedidosTable({
   const [deletePopupPedidoId, setDeletePopupPedidoId] = useState(null);
   const [detalle, setDetalle] = useState(null);
 
+  const pedidosHoy =
+    filtroFecha && filtroFecha !== "ninguna" && filtroFecha !== "" && filtroFecha !== "pendientes" && filtroFecha !== "cancelado"
+      ? pedidosOrdenados.filter(p => p.fecha === filtroFecha).length
+      : pedidosOrdenados.filter(p => p.fecha === new Date().toISOString().slice(0, 10)).length;
+
   const mostrarAccionEliminar = (pedido) => (
     <button
       title="Eliminar"
@@ -271,6 +276,9 @@ export default function PedidosTable({
           >
             Limpiar
           </button>
+          <span className="ml-4 px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium text-xs">
+            Pedidos del día: {pedidosHoy}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button
