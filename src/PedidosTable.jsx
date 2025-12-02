@@ -217,6 +217,12 @@ export default function PedidosTable({
   const [deletePopupPedidoId, setDeletePopupPedidoId] = useState(null);
   const [detalle, setDetalle] = useState(null);
 
+  // Para las flechas, solo se puede navegar entre fechas con pedidos
+  const fechasDispos = fechasUnicas.filter(Boolean).sort();
+  const fechaActualIx = fechasDispos.findIndex(f => f === filtroFecha);
+  const tieneAnterior = fechaActualIx > 0;
+  const tieneSiguiente = fechaActualIx >= 0 && fechaActualIx < fechasDispos.length - 1;
+
   const pedidosHoy =
     filtroFecha && filtroFecha !== "ninguna" && filtroFecha !== "" && filtroFecha !== "pendientes" && filtroFecha !== "cancelado"
       ? pedidosOrdenados.filter(p => p.fecha === filtroFecha).length
@@ -286,14 +292,10 @@ export default function PedidosTable({
             aria-label="Día anterior"
             className="rounded-full transition hover:bg-gray-200 p-2"
             onClick={() => {
-              if (!filtroFecha) return;
-              if (/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)) {
-                const d = new Date(filtroFecha);
-                d.setDate(d.getDate() - 1);
-                setFiltroFecha(d.toISOString().slice(0, 10));
-              }
+              if (!tieneAnterior) return;
+              setFiltroFecha(fechasDispos[fechaActualIx - 1]);
             }}
-            disabled={!filtroFecha || !/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)}
+            disabled={!tieneAnterior}
           >
             <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
@@ -304,14 +306,10 @@ export default function PedidosTable({
             aria-label="Día siguiente"
             className="rounded-full transition hover:bg-gray-200 p-2"
             onClick={() => {
-              if (!filtroFecha) return;
-              if (/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)) {
-                const d = new Date(filtroFecha);
-                d.setDate(d.getDate() + 1);
-                setFiltroFecha(d.toISOString().slice(0, 10));
-              }
+              if (!tieneSiguiente) return;
+              setFiltroFecha(fechasDispos[fechaActualIx + 1]);
             }}
-            disabled={!filtroFecha || !/^\d{4}-\d{2}-\d{2}$/.test(filtroFecha)}
+            disabled={!tieneSiguiente}
           >
             <svg className="h-5 w-5 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>

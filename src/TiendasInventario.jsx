@@ -163,7 +163,7 @@ export default function TiendasInventario({ user }) {
           return false;
         }
       })
-    : movimientos;
+    : [];
 
   const filteredPaqMovimientos = paqSelectedDate
     ? paqMovimientos.filter(m => {
@@ -383,19 +383,12 @@ export default function TiendasInventario({ user }) {
         <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
           <div className="relative bg-white rounded-2xl p-2 sm:p-6 z-60 w-full sm:max-w-2xl max-w-full mx-auto my-0 sm:my-8 flex flex-col items-center pt-16 sm:pt-0 sm:max-h-[86vh] sm:overflow-y-auto">
-            <div className="flex flex-col sm:flex-row w-full justify-between items-center mb-4 gap-2">
-              <h3 className="text-lg font-bold text-center w-full sm:w-auto">Movimientos - {activeStore ? activeStore.name : ""}</h3>
-              <button
-                onClick={() => abrirPaqueteriasTienda(activeStore?.name)}
-                className="px-3 py-1 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-800 font-semibold"
-                title="Ver movimientos de paqueterías (solo esta tienda)"
-              >
-                PAQUETERIAS
-              </button>
-            </div>
-            <div className="mb-4 flex flex-col sm:flex-row gap-2 items-center w-full">
-              <div className="flex items-center">
-                <label className="text-sm text-gray-600">Filtrar por fecha:</label>
+            <div
+              className="mb-4 w-full flex flex-col sm:flex-row gap-2 items-center justify-between"
+              style={{ marginTop: 20, marginBottom: 24 }}
+            >
+              <div className="flex items-center w-full sm:w-auto">
+                <label className="text-sm text-gray-600 mr-1">Filtrar por fecha:</label>
                 <input
                   type="date"
                   className="border rounded px-2 py-1 text-sm ml-2"
@@ -404,6 +397,14 @@ export default function TiendasInventario({ user }) {
                 />
                 <button className="text-sm text-gray-600 underline ml-2" onClick={() => setSelectedDate("")}>Limpiar</button>
               </div>
+              <button
+                onClick={() => abrirPaqueteriasTienda(activeStore?.name)}
+                className="px-3 py-2 sm:py-1 rounded-md bg-blue-600 text-white shadow-[0_2px_8px_0_rgba(0,0,0,0.25)] font-semibold"
+                title="Ver movimientos de paqueterías (solo esta tienda)"
+                style={{ marginTop: 6, marginBottom: 6 }}
+              >
+                PAQUETERIAS
+              </button>
             </div>
             {selectedDate && resumenMovimientosPorFecha().filter(prod => prod.venta !== 0).length > 0 && (
               <div className="mb-3 space-y-1 w-full">
@@ -421,16 +422,37 @@ export default function TiendasInventario({ user }) {
                 }
               </div>
             )}
-            {loadingMovimientos ? (
+            {!selectedDate ? (
+              <div className="text-sm text-gray-600 w-full text-center">Selecciona una fecha para ver movimientos.</div>
+            ) : loadingMovimientos ? (
               <div className="text-sm text-gray-600 w-full text-center">Cargando movimientos...</div>
             ) : filteredMovimientos.length === 0 ? (
               <div className="text-sm text-gray-600 w-full text-center">No hay movimientos registrados para la fecha seleccionada.</div>
             ) : (
-              <div className="space-y-3 px-1 w-full flex flex-col items-center">
+              <div
+                className="space-y-4 px-2 w-full flex flex-col items-center"
+                style={{
+                  maxHeight: "420px",
+                  overflowY: "auto",
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  marginTop: "12px",
+                  marginBottom: "12px",
+                  background: "#f1f5f9",
+                  borderRadius: "16px",
+                  boxShadow: "0 0 5px 1.5px rgba(0,0,0,0.05)"
+                }}
+              >
                 {filteredMovimientos.map(m => (
                   <div
                     key={m.id}
-                    className="w-full max-w-xl shadow border rounded-xl"
+                    className="w-full max-w-xl bg-white shadow border rounded-xl mb-2"
+                    style={{
+                      marginTop: 8,
+                      marginBottom: 8,
+                      border: "1px solid #d1d5db",
+                      boxShadow: "0 1px 8px 0 rgba(0,0,0,0.05)"
+                    }}
                   >
                     <button
                       className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-white active:bg-gray-100 focus:outline-none"
