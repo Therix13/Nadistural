@@ -8,12 +8,12 @@ const menuItems = [
 ];
 
 export default function Navbar({ user, onLogout, onNavigate, currentView, isAdmin }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   function handleNavigate(key) {
     if (onNavigate) onNavigate(key);
-    setMobileOpen(false);
+    setSidebarOpen(false);
   }
 
   const availableItems = menuItems.filter(
@@ -22,7 +22,7 @@ export default function Navbar({ user, onLogout, onNavigate, currentView, isAdmi
 
   function handleLogoutModalOpen() {
     setShowLogoutConfirm(true);
-    setMobileOpen(false);
+    setSidebarOpen(false);
   }
 
   function handleLogoutConfirm() {
@@ -36,62 +36,40 @@ export default function Navbar({ user, onLogout, onNavigate, currentView, isAdmi
 
   return (
     <>
-      <nav
-        className="w-full py-2 px-2 shadow border-b border-slate-200 fixed top-0 left-0 z-[110]"
-        style={{
-          background:
-            "linear-gradient(90deg,#eaeaea 0%,#f5f5f5 45%,#d4d4d4 100%)"
-        }}
+      <button
+        className="fixed top-4 left-4 z-[201] p-2 bg-gray-300 rounded-lg shadow hover:bg-gray-400 transition"
+        aria-label="Abrir menú"
+        onClick={() => setSidebarOpen(true)}
       >
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
-          <span className="text-gray-900 font-black text-lg md:text-xl tracking-tight select-none">Nadistural</span>
-          <div className="hidden md:flex items-center gap-6">
-            {availableItems.map(item => (
-              <button
-                key={item.key}
-                className={`px-3 py-2 rounded text-base font-semibold transition ${
-                  currentView === item.key
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-700 hover:bg-blue-600 hover:text-white"
-                }`}
-                onClick={() => handleNavigate(item.key)}
-              >
-                {item.label}
-              </button>
-            ))}
-            <span className="ml-2 text-gray-600 text-base font-semibold">{user}</span>
-            <button
-              className="ml-4 px-3 py-2 rounded text-base font-semibold shadow transition bg-transparent text-black hover:text-blue-700"
-              style={{ minWidth: "120px" }}
-              onClick={handleLogoutModalOpen}
-            >
-              Cerrar sesión
-            </button>
-          </div>
-          <div className="md:hidden flex items-center gap-2">
-            <span className="text-gray-600 text-base font-semibold mr-1">{user}</span>
-            <button
-              className="p-2 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400 shadow"
-              onClick={() => setMobileOpen(v => !v)}
-              aria-label="Abrir menú"
-            >
-              <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <line x1={3} y1={12} x2={21} y2={12} />
-                <line x1={3} y1={6} x2={21} y2={6} />
-                <line x1={3} y1={18} x2={21} y2={18} />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <line x1={3} y1={12} x2={21} y2={12} />
+          <line x1={3} y1={6} x2={21} y2={6} />
+          <line x1={3} y1={18} x2={21} y2={18} />
+        </svg>
+      </button>
+
+      <div>
         <div
-          className={`md:hidden fixed top-[54px] right-0 z-[111] w-[220px] ${mobileOpen ? "translate-x-0 opacity-100" : "translate-x-[250px] opacity-0"} transition-all duration-300`}
-          style={{ pointerEvents: mobileOpen ? "auto" : "none", background: "#ededed", borderLeft: "1px solid #d4d4d4", boxShadow: "0 12px 32px 0 rgba(20,20,20,0.13)", borderRadius: "0 0 18px 18px" }}
+          className={`fixed left-0 top-0 h-full w-[85vw] max-w-xs z-[210] bg-gradient-to-b from-[#eaeaea] via-[#f5f5f5] to-[#d4d4d4] shadow-2xl transform ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } transition-transform duration-300`}
+          style={{ borderRight: "1.5px solid #d4d4d4" }}
         >
-          <div className="flex flex-col py-4 rounded-b-xl">
+          <div className="flex items-center h-16 px-4 border-b border-slate-200 justify-between">
+            <span className="text-gray-900 font-black text-xl tracking-tight select-none">Nadistural</span>
+            <button
+              className="p-2 rounded shadow hover:bg-gray-200"
+              aria-label="Cerrar menú"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <svg width={28} height={28} viewBox="0 0 20 20" fill="none"><path d="M4 4l12 12m0-12L4 16" stroke="currentColor" strokeWidth={2.3} strokeLinecap="round" /></svg>
+            </button>
+          </div>
+          <div className="flex-1 flex flex-col gap-2 px-4 pt-7 pb-12">
             {availableItems.map(item => (
               <button
                 key={item.key}
-                className={`w-full text-left px-6 py-3 text-base font-semibold transition border-b border-slate-300 last:border-none 
+                className={`w-full text-left px-4 py-3 my-1 rounded transition font-semibold text-base 
                   ${currentView === item.key
                     ? "bg-blue-600 text-white"
                     : "text-gray-800 hover:bg-blue-600 hover:text-white"
@@ -101,29 +79,32 @@ export default function Navbar({ user, onLogout, onNavigate, currentView, isAdmi
                 {item.label}
               </button>
             ))}
+            <span className="mt-8 ml-2 text-gray-600 font-bold">{user}</span>
             <button
-              className="w-full text-left px-6 py-3 text-base font-semibold bg-transparent text-black rounded-b-xl shadow mt-2 hover:text-blue-700"
+              className="w-full text-left px-4 py-3 rounded font-semibold border text-red-700 mt-6 
+              hover:text-white hover:bg-red-700 transition bg-white"
               onClick={handleLogoutModalOpen}
             >
               Cerrar sesión
             </button>
           </div>
         </div>
-        <style>
-          {`
-            @media (max-width: 900px) {
-              nav { font-size: 14px }
-            }
-          `}
-        </style>
-      </nav>
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-[200] bg-black/40"
+            aria-hidden="true"
+            style={{ transition: "background 0.3s" }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </div>
 
       {showLogoutConfirm && (
         <>
           <div
-            className="fixed inset-0 z-[109] pointer-events-none"
+            className="fixed inset-0 z-[9998]"
             aria-hidden="true"
-            style={{ background: "linear-gradient(180deg, #111a2b 0%, #162032 100%)" }}
+            style={{ background: "linear-gradient(180deg, #111a2b 0%, #162032 100%)", opacity: 0.9 }}
           />
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center pt-[70px]"

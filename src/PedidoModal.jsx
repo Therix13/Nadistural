@@ -101,25 +101,17 @@ export default function PedidoModal({ open, onClose, onSubmit, initialValues, pr
   );
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-start justify-center bg-black/30 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative flex flex-col items-center justify-start w-full"
-        style={{
-          left: 0,
-          right: 0,
-          zIndex: 511,
-          top: 0,
-        }}
-      >
+      <div className="relative flex flex-col items-center justify-center w-full">
         <div
-          className="bg-white rounded-b-2xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein"
+          className="bg-white rounded-xl shadow-2xl p-6 md:p-8 max-w-lg w-full mx-auto flex flex-col items-center animate-fadein my-8"
           style={{
-            maxHeight: "95vh",
+            maxHeight: "calc(100vh - 4rem)",
             overflowY: "auto",
             width: "95vw",
             minWidth: "280px",
             position: "relative",
-            top: 0,
           }}
         >
           <button

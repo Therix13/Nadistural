@@ -217,7 +217,6 @@ export default function PedidosTable({
   const [deletePopupPedidoId, setDeletePopupPedidoId] = useState(null);
   const [detalle, setDetalle] = useState(null);
 
-  // Para las flechas, solo se puede navegar entre fechas con pedidos
   const fechasDispos = fechasUnicas.filter(Boolean).sort();
   const fechaActualIx = fechasDispos.findIndex(f => f === filtroFecha);
   const tieneAnterior = fechaActualIx > 0;
@@ -231,11 +230,11 @@ export default function PedidosTable({
   const mostrarAccionEliminar = (pedido) => (
     <button
       title="Eliminar"
-      className="focus:outline-none group"
+      className="p-1 transition-transform duration-200 hover:scale-110 focus:outline-none group hover:bg-rose-100 rounded"
       onClick={() => setDeletePopupPedidoId(pedido.id)}
       disabled={isAnyPopupOpen}
     >
-      <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <svg className="w-5 h-5 text-rose-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
       </svg>
     </button>
@@ -365,22 +364,22 @@ export default function PedidosTable({
                               <>
                                 <button
                                   title="Editar"
-                                  className="focus:outline-none group"
+                                  className="p-1 transition-transform duration-200 hover:scale-110 focus:outline-none group hover:bg-blue-100 rounded"
                                   onClick={() => handleEditarPedido(pedido.id)}
                                   disabled={isAnyPopupOpen}
                                 >
-                                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5 text-blue-500 group-hover:text-blue-700 transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 013.536 3.536L7.5 21H3v-4.5L16.732 3.732z"/>
                                   </svg>
                                 </button>
                                 {mostrarAccionEliminar(pedido)}
                                 <button
                                   title="Confirmar"
-                                  className="focus:outline-none group"
+                                  className="p-1 transition-transform duration-200 hover:scale-110 focus:outline-none group hover:bg-green-200 rounded"
                                   onClick={() => onShowPopupConfirmar(pedido.id)}
                                   disabled={isAnyPopupOpen}
                                 >
-                                  <svg className="w-6 h-6 rounded-full text-green-700 transition bg-green-100 hover:bg-green-200 p-1 shadow" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+                                  <svg className="w-6 h-6 rounded-full text-green-700 transition bg-green-100 group-hover:bg-green-600 group-hover:text-white hover:bg-green-200 p-1 shadow" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
                                   </svg>
                                 </button>

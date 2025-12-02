@@ -24,12 +24,6 @@ import {
 } from "./firebase";
 import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, addDoc } from "firebase/firestore";
 
-const IconArrowLeft = () => (
-  <svg className="w-8 h-8 text-slate-700 hover:text-blue-600 transition" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-  </svg>
-);
-
 function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
   const today = new Date();
   const minDate = today.toISOString().split("T")[0];
@@ -57,7 +51,7 @@ function ReagendarPopup({ open, onClose, onConfirm, fechaOriginal }) {
 
 function formatoFecha(fechaString) {
   if (!fechaString) return "";
-  const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sabado"];
   const [yyyy, mm, dd] = fechaString.split("-");
   const fecha = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
   if (isNaN(fecha.getTime())) return "";
@@ -421,20 +415,24 @@ export default function App() {
         const usuario = typeof user === "string" ? user : (user?.nombre ?? "unknown");
         const cliente = pedido.cliente || "";
         const fechaPedido = pedido.fecha || "";
-        const movimientos = pedido.productos.map(p => ({
-          productoId: p.producto,
-          cantidad: Number(p.cantidad || 1),
-          precio: Number(p.precio || 0),
+        const movimiento = {
+          productos: pedido.productos.map(p => ({
+            productoId: p.producto,
+            nombre: p.producto,
+            cantidad: Number(p.cantidad || 1)
+          })),
           tipo: "venta",
           usuario,
           pedidoId: pedido.id,
           cliente,
+          metodoPago: pedido.metodoPago || metodoPagoArg || "",
           fechaPedido,
-          timestamp: new Date().toISOString()
-        }));
-        await Promise.all(movimientos.map(mov =>
-          addDoc(movimientosRef, mov)
-        ));
+          timestamp: new Date().toISOString(),
+          clienteNombre: pedido.nombre || "",
+          clienteTelefono: pedido.telefono || "",
+          precioVenta: Number(pedido.precio || 0)
+        };
+        await addDoc(movimientosRef, movimiento);
       }
 
       setShowConfirmPopup(false);
@@ -585,9 +583,7 @@ export default function App() {
           isAdmin={isAdmin}
         />
       )}
-      {isAnyPopupOpen &&
-        <div className="fixed inset-0 z-[99] pointer-events-auto select-auto" />
-      }
+      {isAnyPopupOpen && <div className="fixed inset-0 z-[99] pointer-events-auto select-auto" />}
       {showPedidoModal && (
         <PedidoModal
           open={showPedidoModal}
@@ -642,12 +638,14 @@ export default function App() {
                   }}
                 >
                   <button
-                    className="absolute top-5 left-5 rounded-full bg-white p-2 shadow hover:bg-blue-50 border border-slate-200 z-10"
-                    title="Volver a Tiendas"
+                    className="absolute top-5 right-5 rounded-full bg-white p-2 shadow hover:bg-blue-100 border border-slate-200 z-10 transition"
+                    title="Cerrar tienda"
                     onClick={() => setView("tiendas")}
-                    style={{ boxShadow: "0 0 12px 0 rgba(0,0,0,0.09)" }}
+                    style={{ boxShadow: "0 0 12px 0 rgba(0,0,0,0.08)" }}
                   >
-                    <IconArrowLeft />
+                    <svg className="h-7 w-7 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6"/>
+                    </svg>
                   </button>
                   <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">
                     Tienda: <span className="font-semibold">{selectedStore}</span>

@@ -16,6 +16,82 @@ function formatDateDisplay(dateString) {
   }
 }
 
+function getTelefonoMovimiento(m) {
+  if (typeof m.cliente === "object" && m.cliente !== null) {
+    return m.cliente.telefono || m.cliente.numero || "";
+  }
+  return (
+    m.telefono ||
+    m.numero ||
+    m.telCliente ||
+    ""
+  );
+}
+
+function CorteDiario({ movimientos, repartidorValor, onRepartidorChange }) {
+  const corte = movimientos.reduce(
+    (acc, mov) => {
+      if (mov.tipo === "venta") {
+        if (mov.metodoPago === "Efectivo") {
+          acc.efectivoCount++;
+          acc.efectivoTotal += Number(mov.precioVenta || 0);
+        } else if (mov.metodoPago === "Transferencia") {
+          acc.transferenciaCount++;
+          acc.transferenciaTotal += Number(mov.precioVenta || 0);
+        }
+        acc.totalCount++;
+        acc.totalSuma += Number(mov.precioVenta || 0);
+      }
+      return acc;
+    },
+    { efectivoCount: 0, efectivoTotal: 0, transferenciaCount: 0, transferenciaTotal: 0, totalCount: 0, totalSuma: 0 }
+  );
+  const totalEnvios = corte.totalCount * repartidorValor;
+  const corteRepartidor = corte.efectivoTotal - totalEnvios;
+  const corteTienda = (corte.efectivoTotal + corte.transferenciaTotal) - totalEnvios;
+  return (
+    <>
+      <div className="flex flex-col md:flex-row md:gap-10 gap-3 my-2 w-full">
+        <div className="font-semibold text-green-900 text-xs md:text-base">
+          Entregas en Efectivo: {corte.efectivoCount} <br />
+          Total efectivo: <span className="font-bold text-green-700">${corte.efectivoTotal}</span>
+        </div>
+        <div className="font-semibold text-blue-900 text-xs md:text-base">
+          Entregas en Transferencia: {corte.transferenciaCount} <br />
+          Total transferencia: <span className="font-bold text-blue-700">${corte.transferenciaTotal}</span>
+        </div>
+        <div className="font-semibold text-slate-900 text-xs md:text-base">
+          Total entregas: {corte.totalCount} <br />
+          Suma total: <span className="font-bold text-slate-900">${corte.totalSuma}</span>
+        </div>
+      </div>
+      <div className="flex flex-col md:flex-row items-center justify-between w-full" style={{margin:'8px 0'}}>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-gray-800 whitespace-nowrap" style={{minWidth: 72}}>Repartidor:</label>
+          <input
+            type="number"
+            min={0}
+            className="border rounded px-2 py-1 text-xs w-[80px]"
+            value={repartidorValor}
+            onChange={e => onRepartidorChange(Number(e.target.value))}
+          />
+        </div>
+        <span className="font-semibold text-black ml-4 text-xs md:text-base">
+          Envios {corte.totalCount}: {corte.totalCount} x {repartidorValor} = <b>${totalEnvios}</b>
+        </span>
+      </div>
+      <div className="flex flex-col md:flex-row items-center gap-8 w-full mt-2">
+        <div className="font-semibold text-purple-900 text-xs md:text-base">
+          Corte Repartidor: <span className="font-bold text-purple-700">${corteRepartidor}</span>
+        </div>
+        <div className="font-semibold text-red-900 text-xs md:text-base">
+          Corte Tienda: <span className="font-bold text-red-700">${corteTienda}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function TiendasInventario({ user }) {
   const [stores, setStores] = useState([]);
   const [alertCounts, setAlertCounts] = useState({});
@@ -38,6 +114,7 @@ export default function TiendasInventario({ user }) {
   const [loadingPaqMovs, setLoadingPaqMovs] = useState(false);
   const [paqSelectedDate, setPaqSelectedDate] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState({ id: null, tienda: null, isPaq: false });
+  const [repartidorValor, setRepartidorValor] = useState(0);
   const isAdmin = user?.rol === "admin" || user === "admin";
 
   useEffect(() => {
@@ -176,30 +253,35 @@ export default function TiendasInventario({ user }) {
         }
       })
     : paqMovimientos;
-
-  function resumenMovimientosPorFecha() {
+      function resumenMovimientosPorFecha() {
     const fechaResumen = selectedDate || new Date().toISOString().slice(0, 10);
     if (productosInventario.length === 0) return [];
     const ventasPorProducto = {};
     movimientos.forEach(mov => {
       if (
         mov.tipo === "venta" &&
-        mov.productoId &&
+        mov.productos &&
+        Array.isArray(mov.productos) &&
         mov.fechaPedido &&
         mov.fechaPedido.slice(0, 10) === fechaResumen
       ) {
-        ventasPorProducto[mov.productoId] = (ventasPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
+        mov.productos.forEach(prod => {
+          ventasPorProducto[prod.productoId] = (ventasPorProducto[prod.productoId] || 0) + Number(prod.cantidad || 0);
+        });
       }
     });
     const ventasPosterioresPorProducto = {};
     movimientos.forEach(mov => {
       if (
         mov.tipo === "venta" &&
-        mov.productoId &&
+        mov.productos &&
+        Array.isArray(mov.productos) &&
         mov.fechaPedido &&
         mov.fechaPedido.slice(0, 10) > fechaResumen
       ) {
-        ventasPosterioresPorProducto[mov.productoId] = (ventasPosterioresPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
+        mov.productos.forEach(prod => {
+          ventasPosterioresPorProducto[prod.productoId] = (ventasPosterioresPorProducto[prod.productoId] || 0) + Number(prod.cantidad || 0);
+        });
       }
     });
     const allMoves = [...movimientos, ...paqMovimientos];
@@ -420,6 +502,12 @@ export default function TiendasInventario({ user }) {
                     </div>
                   ))
                 }
+                <div style={{borderTop:"3px solid #111",margin:"10px 0 14px 0",width:"100%"}}></div>
+                <CorteDiario
+                  movimientos={filteredMovimientos}
+                  repartidorValor={repartidorValor}
+                  onRepartidorChange={setRepartidorValor}
+                />
               </div>
             )}
             {!selectedDate ? (
@@ -460,11 +548,37 @@ export default function TiendasInventario({ user }) {
                         setExpandedMov(expandedMov === m.id ? null : m.id)
                       }
                     >
-                      <span className="text-base font-semibold text-gray-800">
-                        {m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}
-                      </span>
-                      <span className="text-xs text-gray-700 font-normal">
-                        Cant.: <b>{m.cantidad}</b>
+                      <div className="flex flex-col items-start flex-1 min-w-0">
+                        <span className="text-base font-semibold text-gray-800 truncate">
+                          {Array.isArray(m.productos)
+                            ? m.productos.map((p, idx) =>
+                                <span key={idx} className="mr-2">
+                                  {p.nombre || p.productoId}
+                                  {idx < m.productos.length - 1 ? "," : ""}
+                                </span>
+                              )
+                            : (m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento")}
+                        </span>
+                        <span className="text-xs text-gray-600 mt-1 w-full truncate">
+                          Cliente: <b>{m.clienteNombre || m.cliente || "--"}</b>
+                          {
+                            (() => {
+                              const tel = m.clienteTelefono || getTelefonoMovimiento(m);
+                              return tel ? <> | <b>{tel}</b></> : null;
+                            })()
+                          }
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-700 font-normal ml-2 mr-2">
+                        {Array.isArray(m.productos)
+                          ? m.productos.map((p, idx) => (
+                              <span key={idx}>
+                                Cant.: <b>{p.cantidad}</b>
+                                {idx < m.productos.length - 1 ? " | " : ""}
+                              </span>
+                            ))
+                          : <>Cant.: <b>{m.cantidad}</b></>
+                        }
                       </span>
                       <span className="text-xs text-gray-600 ml-2">{m.fechaPedido ? m.fechaPedido.slice(0,10) : ""}</span>
                       <span className="text-xs text-gray-600 ml-2">{m.usuario}</span>
@@ -480,12 +594,28 @@ export default function TiendasInventario({ user }) {
                     {expandedMov === m.id && (
                       <div className="px-4 pb-4 pt-1 text-xs text-gray-700 bg-gray-50 rounded-b-xl">
                         <div>Tipo: {m.tipo || "—"}</div>
-                        <div>Cantidad registrada: {m.cantidad}</div>
-                        {typeof m.precio !== "undefined" && (
-                          <div>Precio unitario: {m.precio}</div>
+                        {Array.isArray(m.productos) ? (
+                          <div>
+                            {m.productos.map((p, idx) => (
+                              <div key={idx}>
+                                Producto: {p.nombre || p.productoId} | Cantidad: {p.cantidad}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div>Cantidad registrada: {m.cantidad}</div>
                         )}
-                        {m.cliente && <div>Cliente: {m.cliente}</div>}
+                        {(m.clienteNombre || m.cliente) && (
+                          <div>Cliente: {m.clienteNombre || m.cliente}</div>
+                        )}
+                        {(m.clienteTelefono || getTelefonoMovimiento(m)) && (
+                          <div>Teléfono: {m.clienteTelefono || getTelefonoMovimiento(m)}</div>
+                        )}
                         <div>Fecha del pedido: {m.fechaPedido}</div>
+                        <div>Metodo de pago: {m.metodoPago}</div>
+                        {typeof m.precioVenta !== "undefined" && (
+                          <div><b>Precio total del pedido: ${m.precioVenta}</b></div>
+                        )}
                         {m.empresa && <div>Empresa: {m.empresa}</div>}
                         {m.codigo && <div>Código: {m.codigo}</div>}
                         <div>Usuario que registró: {m.usuario}</div>
