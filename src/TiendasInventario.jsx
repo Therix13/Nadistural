@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getFirestore, collection, getDocs, doc, updateDoc, getDoc, increment, deleteDoc } from "firebase/firestore";
 import { getAllStores } from "./firebase";
 import Inventario from "./Inventario";
+import Cortes from "./Cortes";
 
 function formatDateDisplay(dateString) {
   if (!dateString) return "";
@@ -16,80 +17,18 @@ function formatDateDisplay(dateString) {
   }
 }
 
-function getTelefonoMovimiento(m) {
-  if (typeof m.cliente === "object" && m.cliente !== null) {
-    return m.cliente.telefono || m.cliente.numero || "";
+function normalizeFechaOnly(str) {
+  if (!str) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const match = str.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+  if (match) {
+    let [_, d, m, y] = match;
+    if (y.length === 2) y = y > 50 ? "19" + y : "20" + y;
+    d = d.padStart(2, "0");
+    m = m.padStart(2, "0");
+    return `${y.length === 4 ? y : "20"+y}-${m}-${d}`;
   }
-  return (
-    m.telefono ||
-    m.numero ||
-    m.telCliente ||
-    ""
-  );
-}
-
-function CorteDiario({ movimientos, repartidorValor, onRepartidorChange }) {
-  const corte = movimientos.reduce(
-    (acc, mov) => {
-      if (mov.tipo === "venta") {
-        if (mov.metodoPago === "Efectivo") {
-          acc.efectivoCount++;
-          acc.efectivoTotal += Number(mov.precioVenta || 0);
-        } else if (mov.metodoPago === "Transferencia") {
-          acc.transferenciaCount++;
-          acc.transferenciaTotal += Number(mov.precioVenta || 0);
-        }
-        acc.totalCount++;
-        acc.totalSuma += Number(mov.precioVenta || 0);
-      }
-      return acc;
-    },
-    { efectivoCount: 0, efectivoTotal: 0, transferenciaCount: 0, transferenciaTotal: 0, totalCount: 0, totalSuma: 0 }
-  );
-  const totalEnvios = corte.totalCount * repartidorValor;
-  const corteRepartidor = corte.efectivoTotal - totalEnvios;
-  const corteTienda = (corte.efectivoTotal + corte.transferenciaTotal) - totalEnvios;
-  return (
-    <>
-      <div className="flex flex-col md:flex-row md:gap-10 gap-3 my-2 w-full">
-        <div className="font-semibold text-green-900 text-xs md:text-base">
-          Entregas en Efectivo: {corte.efectivoCount} <br />
-          Total efectivo: <span className="font-bold text-green-700">${corte.efectivoTotal}</span>
-        </div>
-        <div className="font-semibold text-blue-900 text-xs md:text-base">
-          Entregas en Transferencia: {corte.transferenciaCount} <br />
-          Total transferencia: <span className="font-bold text-blue-700">${corte.transferenciaTotal}</span>
-        </div>
-        <div className="font-semibold text-slate-900 text-xs md:text-base">
-          Total entregas: {corte.totalCount} <br />
-          Suma total: <span className="font-bold text-slate-900">${corte.totalSuma}</span>
-        </div>
-      </div>
-      <div className="flex flex-col md:flex-row items-center justify-between w-full" style={{margin:'8px 0'}}>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-gray-800 whitespace-nowrap" style={{minWidth: 72}}>Repartidor:</label>
-          <input
-            type="number"
-            min={0}
-            className="border rounded px-2 py-1 text-xs w-[80px]"
-            value={repartidorValor}
-            onChange={e => onRepartidorChange(Number(e.target.value))}
-          />
-        </div>
-        <span className="font-semibold text-black ml-4 text-xs md:text-base">
-          Envios {corte.totalCount}: {corte.totalCount} x {repartidorValor} = <b>${totalEnvios}</b>
-        </span>
-      </div>
-      <div className="flex flex-col md:flex-row items-center gap-8 w-full mt-2">
-        <div className="font-semibold text-purple-900 text-xs md:text-base">
-          Corte Repartidor: <span className="font-bold text-purple-700">${corteRepartidor}</span>
-        </div>
-        <div className="font-semibold text-red-900 text-xs md:text-base">
-          Corte Tienda: <span className="font-bold text-red-700">${corteTienda}</span>
-        </div>
-      </div>
-    </>
-  );
+  return str.slice(0,10);
 }
 
 export default function TiendasInventario({ user }) {
@@ -106,7 +45,7 @@ export default function TiendasInventario({ user }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMovimiento, setConfirmMovimiento] = useState(null);
   const [confirmDate, setConfirmDate] = useState("");
-  const [confirmQty, setConfirmQty] = useState("");
+  const [confirmQtys, setConfirmQtys] = useState([]);
   const [savingConfirm, setSavingConfirm] = useState(false);
   const [productosInventario, setProductosInventario] = useState([]);
   const [showPaqModal, setShowPaqModal] = useState(false);
@@ -114,7 +53,7 @@ export default function TiendasInventario({ user }) {
   const [loadingPaqMovs, setLoadingPaqMovs] = useState(false);
   const [paqSelectedDate, setPaqSelectedDate] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState({ id: null, tienda: null, isPaq: false });
-  const [repartidorValor, setRepartidorValor] = useState(0);
+  const [showCortes, setShowCortes] = useState(false);
   const isAdmin = user?.rol === "admin" || user === "admin";
 
   useEffect(() => {
@@ -242,146 +181,87 @@ export default function TiendasInventario({ user }) {
       })
     : [];
 
-  const filteredPaqMovimientos = paqSelectedDate
-    ? paqMovimientos.filter(m => {
-        try {
-          if (!m.fechaPedido) return false;
-          const fecha = (m.fechaPedido.length > 10 ? m.fechaPedido.slice(0,10) : m.fechaPedido);
-          return fecha === paqSelectedDate;
-        } catch (e) {
-          return false;
-        }
-      })
-    : paqMovimientos;
-      function resumenMovimientosPorFecha() {
-    const fechaResumen = selectedDate || new Date().toISOString().slice(0, 10);
-    if (productosInventario.length === 0) return [];
-    const ventasPorProducto = {};
-    movimientos.forEach(mov => {
-      if (
-        mov.tipo === "venta" &&
-        mov.productos &&
-        Array.isArray(mov.productos) &&
-        mov.fechaPedido &&
-        mov.fechaPedido.slice(0, 10) === fechaResumen
-      ) {
-        mov.productos.forEach(prod => {
-          ventasPorProducto[prod.productoId] = (ventasPorProducto[prod.productoId] || 0) + Number(prod.cantidad || 0);
-        });
-      }
-    });
-    const ventasPosterioresPorProducto = {};
-    movimientos.forEach(mov => {
-      if (
-        mov.tipo === "venta" &&
-        mov.productos &&
-        Array.isArray(mov.productos) &&
-        mov.fechaPedido &&
-        mov.fechaPedido.slice(0, 10) > fechaResumen
-      ) {
-        mov.productos.forEach(prod => {
-          ventasPosterioresPorProducto[prod.productoId] = (ventasPosterioresPorProducto[prod.productoId] || 0) + Number(prod.cantidad || 0);
-        });
-      }
-    });
-    const allMoves = [...movimientos, ...paqMovimientos];
-    const entradasHoy = allMoves.filter(m =>
-      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) === fechaResumen
-    );
-    const entradasFuturas = allMoves.filter(m =>
-      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) > fechaResumen
-    );
-    const entradasPorProducto = {};
-    entradasHoy.forEach(m => {
-      const pid = m.productoId || m.producto || "_unknown";
-      let diff = 0;
-      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
-        diff = Number(m.diferencia);
-      else if (
-        typeof m.cantidadLlegada !== "undefined" &&
-        typeof m.cantidad !== "undefined"
-      )
-        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
-      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
-      entradasPorProducto[pid] = (entradasPorProducto[pid] || 0) + diff;
-    });
-    const entradasFuturasPorProducto = {};
-    entradasFuturas.forEach(m => {
-      const pid = m.productoId || m.producto || "_unknown";
-      let diff = 0;
-      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
-        diff = Number(m.diferencia);
-      else if (
-        typeof m.cantidadLlegada !== "undefined" &&
-        typeof m.cantidad !== "undefined"
-      )
-        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
-      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
-      entradasFuturasPorProducto[pid] = (entradasFuturasPorProducto[pid] || 0) + diff;
-    });
+  console.log("paqSelectedDate", paqSelectedDate);
+  paqMovimientos.forEach(m => {
+    console.log("MOV {guia:}", m.codigo, "fechaPedido:", m.fechaPedido, "-> normalized:", normalizeFechaOnly(m.fechaPedido));
+  });
 
-    return productosInventario.map(prod => {
-      const venta = ventasPorProducto[prod.id] || 0;
-      const ventasPosteriores = ventasPosterioresPorProducto[prod.id] || 0;
-      const entradas = entradasPorProducto[prod.id] || 0;
-      const entradasFuturas = entradasFuturasPorProducto[prod.id] || 0;
-      const currentStock = Number(prod.cantidad || 0);
-      const stockInicial = currentStock + venta + ventasPosteriores - entradas + entradasFuturas;
-      const stockFinal = stockInicial - venta;
-      return {
-        nombre: prod.nombre,
-        venta,
-        stockInicial,
-        stockFinal
-      };
-    });
-  }
+  const filteredPaqMovimientos = paqMovimientos.filter(m => {
+    if (!paqSelectedDate) return true;
+    if (!m.fechaPedido) return false;
+    return normalizeFechaOnly(m.fechaPedido) === paqSelectedDate;
+  });
+
+  const paqAgrupadosPorGuia = Object.values(
+    filteredPaqMovimientos.reduce((acc, mov) => {
+      const guia = mov.codigo || mov.guidenumber || "SIN_GUIA";
+      if (!acc[guia]) {
+        acc[guia] = {
+          ...mov,
+          productos: [],
+          movimientos: [],
+        };
+      }
+      acc[guia].productos.push({
+        productoId: mov.productoId,
+        nombre: mov.productoNombre || mov.producto || "",
+        cantidad: mov.cantidad,
+        id: mov.id
+      });
+      acc[guia].movimientos.push(mov);
+      return acc;
+    }, {})
+  );
 
   function openConfirm(m) {
     setConfirmMovimiento(m);
     const today = new Date().toISOString().split("T")[0];
     setConfirmDate(m.fechaLlegada || today);
-    setConfirmQty(String(m.cantidadLlegada ?? m.cantidad ?? ""));
+    setConfirmQtys(m.productos.map(prod => prod.cantidad ? String(prod.cantidad) : ''));
     setConfirmOpen(true);
   }
 
   async function handleConfirmSubmit() {
     if (!confirmMovimiento || !(showMovimientos || showPaqModal)) return;
-    if (!confirmDate || confirmQty === "") return;
+    if (!confirmDate) return;
     setSavingConfirm(true);
     try {
       const db = getFirestore();
       const tiendaName = confirmMovimiento.tienda || activeStore?.name;
-      const mvDocRef = doc(db, "Inventario", tiendaName, "MOVIMIENTOS", confirmMovimiento.id);
-      const actor = typeof user === "string" ? user : (user?.nombre ?? "unknown");
-      const arrivedQty = Number(confirmQty);
-      const originalQty = Number(confirmMovimiento.cantidad ?? 0);
-      const diff = arrivedQty - originalQty;
-
-      if (diff !== 0 && confirmMovimiento.productoId) {
-        const productoRef = doc(db, "Inventario", tiendaName, "PRODUCTOS", confirmMovimiento.productoId);
-        const prodSnap = await getDoc(productoRef);
-        if (prodSnap.exists()) {
-          await updateDoc(productoRef, { cantidad: increment(diff) });
+      for (let idx = 0; idx < confirmMovimiento.movimientos.length; idx++) {
+        const mov = confirmMovimiento.movimientos[idx];
+        const qtyIdx = confirmMovimiento.productos.findIndex(p => p.id === mov.id);
+        if (qtyIdx === -1) continue;
+        const arrivedQty = Number(confirmQtys[qtyIdx]);
+        const originalQty = Number(mov.cantidad ?? 0);
+        const diff = arrivedQty - originalQty;
+        if (diff !== 0 && mov.productoId) {
+          const productoRef = doc(db, "Inventario", tiendaName, "PRODUCTOS", mov.productoId);
+          const prodSnap = await getDoc(productoRef);
+          if (prodSnap.exists()) {
+            await updateDoc(productoRef, { cantidad: increment(diff) });
+          }
         }
+        const mvDocRef = doc(db, "Inventario", tiendaName, "MOVIMIENTOS", mov.id);
+        const actor = typeof user === "string" ? user : (user?.nombre ?? "unknown");
+        await updateDoc(mvDocRef, {
+          confirmado: true,
+          fechaLlegada: confirmDate,
+          cantidadLlegada: arrivedQty,
+          diferencia: diff,
+          confirmadoPor: actor,
+          confirmadoTimestamp: new Date().toISOString()
+        });
       }
-
-      await updateDoc(mvDocRef, {
-        confirmado: true,
-        fechaLlegada: confirmDate,
-        cantidadLlegada: arrivedQty,
-        diferencia: diff,
-        confirmadoPor: actor,
-        confirmadoTimestamp: new Date().toISOString()
-      });
-
-      setMovimientos(prev => prev.map(m => m.id === confirmMovimiento.id ? { ...m, confirmado: true, fechaLlegada: confirmDate, cantidadLlegada: arrivedQty, diferencia: diff, confirmadoPor: actor, confirmadoTimestamp: new Date().toISOString() } : m));
-      setPaqMovimientos(prev => prev.map(m => m.id === confirmMovimiento.id ? { ...m, confirmado: true, fechaLlegada: confirmDate, cantidadLlegada: arrivedQty, diferencia: diff, confirmadoPor: actor, confirmadoTimestamp: new Date().toISOString() } : m));
-
+      setPaqMovimientos(prev => prev.map(m =>
+        confirmMovimiento.movimientos.some(inner => inner.id === m.id)
+          ? { ...m, confirmado: true, fechaLlegada: confirmDate, cantidadLlegada: Number(confirmQtys[confirmMovimiento.productos.findIndex(p => p.id === m.id)]), diferencia: (Number(confirmQtys[confirmMovimiento.productos.findIndex(p => p.id === m.id)]) - (Number(m.cantidad) || 0)), confirmadoPor: typeof user === "string" ? user : (user?.nombre ?? "unknown"), confirmadoTimestamp: new Date().toISOString() }
+          : m
+      ));
       setConfirmOpen(false);
       setConfirmMovimiento(null);
       setConfirmDate("");
-      setConfirmQty("");
+      setConfirmQtys([]);
     } catch (e) {
     } finally {
       setSavingConfirm(false);
@@ -461,6 +341,7 @@ export default function TiendasInventario({ user }) {
           user={user}
         />
       )}
+
       {showMovimientos && (
         <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
@@ -479,15 +360,27 @@ export default function TiendasInventario({ user }) {
                 />
                 <button className="text-sm text-gray-600 underline ml-2" onClick={() => setSelectedDate("")}>Limpiar</button>
               </div>
-              <button
-                onClick={() => abrirPaqueteriasTienda(activeStore?.name)}
-                className="px-3 py-2 sm:py-1 rounded-md bg-blue-600 text-white shadow-[0_2px_8px_0_rgba(0,0,0,0.25)] font-semibold"
-                title="Ver movimientos de paqueterías (solo esta tienda)"
-                style={{ marginTop: 6, marginBottom: 6 }}
-              >
-                PAQUETERIAS
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCortes(true)}
+                  className="px-3 py-2 sm:py-1 rounded-md bg-green-600 text-white shadow-[0_2px_8px_0_rgba(0,0,0,0.12)] font-semibold"
+                  type="button"
+                >
+                  CORTES
+                </button>
+                <button
+                  onClick={() => abrirPaqueteriasTienda(activeStore?.name)}
+                  className="px-3 py-2 sm:py-1 rounded-md bg-blue-600 text-white shadow-[0_2px_8px_0_rgba(0,0,0,0.25)] font-semibold"
+                  title="Ver movimientos de paqueterías (solo esta tienda)"
+                  style={{ marginTop: 0, marginBottom: 0 }}
+                >
+                  PAQUETERIAS
+                </button>
+              </div>
             </div>
+            {showCortes && (
+              <Cortes open={showCortes} onClose={() => setShowCortes(false)} />
+            )}
             {selectedDate && resumenMovimientosPorFecha().filter(prod => prod.venta !== 0).length > 0 && (
               <div className="mb-3 space-y-1 w-full">
                 <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
@@ -502,12 +395,6 @@ export default function TiendasInventario({ user }) {
                     </div>
                   ))
                 }
-                <div style={{borderTop:"3px solid #111",margin:"10px 0 14px 0",width:"100%"}}></div>
-                <CorteDiario
-                  movimientos={filteredMovimientos}
-                  repartidorValor={repartidorValor}
-                  onRepartidorChange={setRepartidorValor}
-                />
               </div>
             )}
             {!selectedDate ? (
@@ -548,37 +435,11 @@ export default function TiendasInventario({ user }) {
                         setExpandedMov(expandedMov === m.id ? null : m.id)
                       }
                     >
-                      <div className="flex flex-col items-start flex-1 min-w-0">
-                        <span className="text-base font-semibold text-gray-800 truncate">
-                          {Array.isArray(m.productos)
-                            ? m.productos.map((p, idx) =>
-                                <span key={idx} className="mr-2">
-                                  {p.nombre || p.productoId}
-                                  {idx < m.productos.length - 1 ? "," : ""}
-                                </span>
-                              )
-                            : (m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento")}
-                        </span>
-                        <span className="text-xs text-gray-600 mt-1 w-full truncate">
-                          Cliente: <b>{m.clienteNombre || m.cliente || "--"}</b>
-                          {
-                            (() => {
-                              const tel = m.clienteTelefono || getTelefonoMovimiento(m);
-                              return tel ? <> | <b>{tel}</b></> : null;
-                            })()
-                          }
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-700 font-normal ml-2 mr-2">
-                        {Array.isArray(m.productos)
-                          ? m.productos.map((p, idx) => (
-                              <span key={idx}>
-                                Cant.: <b>{p.cantidad}</b>
-                                {idx < m.productos.length - 1 ? " | " : ""}
-                              </span>
-                            ))
-                          : <>Cant.: <b>{m.cantidad}</b></>
-                        }
+                      <span className="text-base font-semibold text-gray-800">
+                        {m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}
+                      </span>
+                      <span className="text-xs text-gray-700 font-normal">
+                        Cant.: <b>{m.cantidad}</b>
                       </span>
                       <span className="text-xs text-gray-600 ml-2">{m.fechaPedido ? m.fechaPedido.slice(0,10) : ""}</span>
                       <span className="text-xs text-gray-600 ml-2">{m.usuario}</span>
@@ -594,28 +455,12 @@ export default function TiendasInventario({ user }) {
                     {expandedMov === m.id && (
                       <div className="px-4 pb-4 pt-1 text-xs text-gray-700 bg-gray-50 rounded-b-xl">
                         <div>Tipo: {m.tipo || "—"}</div>
-                        {Array.isArray(m.productos) ? (
-                          <div>
-                            {m.productos.map((p, idx) => (
-                              <div key={idx}>
-                                Producto: {p.nombre || p.productoId} | Cantidad: {p.cantidad}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div>Cantidad registrada: {m.cantidad}</div>
+                        <div>Cantidad registrada: {m.cantidad}</div>
+                        {typeof m.precio !== "undefined" && (
+                          <div>Precio unitario: {m.precio}</div>
                         )}
-                        {(m.clienteNombre || m.cliente) && (
-                          <div>Cliente: {m.clienteNombre || m.cliente}</div>
-                        )}
-                        {(m.clienteTelefono || getTelefonoMovimiento(m)) && (
-                          <div>Teléfono: {m.clienteTelefono || getTelefonoMovimiento(m)}</div>
-                        )}
+                        {m.cliente && <div>Cliente: {m.cliente}</div>}
                         <div>Fecha del pedido: {m.fechaPedido}</div>
-                        <div>Metodo de pago: {m.metodoPago}</div>
-                        {typeof m.precioVenta !== "undefined" && (
-                          <div><b>Precio total del pedido: ${m.precioVenta}</b></div>
-                        )}
                         {m.empresa && <div>Empresa: {m.empresa}</div>}
                         {m.codigo && <div>Código: {m.codigo}</div>}
                         <div>Usuario que registró: {m.usuario}</div>
@@ -678,34 +523,46 @@ export default function TiendasInventario({ user }) {
             </div>
             {loadingPaqMovs ? (
               <div className="text-sm text-gray-600">Cargando movimientos de paqueterías...</div>
-            ) : filteredPaqMovimientos.length === 0 ? (
+            ) : paqAgrupadosPorGuia.length === 0 ? (
               <div className="text-sm text-gray-600">No hay movimientos de paqueterías para la fecha seleccionada.</div>
             ) : (
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {filteredPaqMovimientos.map(m => (
-                  <div key={`${m.tienda}_${m.id}`} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
+                {paqAgrupadosPorGuia.map(m => (
+                  <div key={m.codigo || m.guidenumber || m.id} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-800">{m.productoNombre || m.producto || "Movimiento"}</div>
+                      <div className="text-sm font-semibold text-gray-800">Guía: {m.codigo || m.guidenumber || "SIN_GUIA"}</div>
                       <div className="text-xs text-gray-600">Tienda: <span className="font-medium text-gray-800">{m.tienda}</span></div>
-                      <div className="text-xs text-gray-600">Cantidad registrada: {m.cantidad ?? "—"}</div>
-                      {m.empresa && <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>}
-                      {m.codigo && <div className="text-xs text-gray-600">Código: {m.codigo}</div>}
-                      {m.usuario && <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>}
-                      {m.fechaPedido && (
-                        <div className="text-xs text-gray-600">Fecha del pedido: {m.fechaPedido}</div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-1">{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
-                      {m.confirmado ? (
+                      <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>
+                      <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>
+                      <div className="text-xs text-gray-600">Fecha: {m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
+                      <div className="text-xs text-gray-600 font-semibold mb-1">Productos enviados:</div>
+                      <ul className="text-xs text-gray-700 mb-2">
+                        {m.productos.map((prod, idx) => (
+                          <li key={idx}>
+                            {prod.nombre} — Cantidad: <b>{prod.cantidad}</b>
+                          </li>
+                        ))}
+                      </ul>
+                      {m.movimientos.some(mv => mv.confirmado) && (
                         <div className="mt-2 text-xs text-green-700">
-                          <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
-                          <div>Fecha llegada: <span className="font-semibold text-gray-800">{formatDateDisplay(m.fechaLlegada)}</span></div>
-                          <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
-                          {typeof m.diferencia !== "undefined" && <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>}
+                          <div>Confirmado por: <span className="font-semibold text-gray-800">{m.movimientos.find(mv => mv.confirmado)?.confirmadoPor ?? "—"}</span></div>
+                          <div>
+                            {m.movimientos.map((mv, i) =>
+                              mv.confirmado && (
+                                <div key={i}>
+                                  <div style={{color:'#198754'}}>Producto confirmado: <b>{mv.productoNombre || mv.producto || ""}</b></div>
+                                  <div style={{color:'#198754'}}>Fecha llegada: {formatDateDisplay(mv.fechaLlegada)}</div>
+                                  <div style={{color:'#198754'}}>Cantidad llegada: {mv.cantidadLlegada ?? 0}</div>
+                                  <div style={{color:'#198754'}}>Diferencia: {mv.diferencia ?? 0}</div>
+                                </div>
+                              )
+                            )}
+                          </div>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                     <div className="ml-3 flex flex-col gap-2">
-                      {!m.confirmado && (
+                      {!m.movimientos.some(mv => mv.confirmado) && (
                         <button
                           className="px-3 py-1 bg-green-600 text-white rounded-md text-xs"
                           onClick={() => openConfirm(m)}
@@ -734,24 +591,73 @@ export default function TiendasInventario({ user }) {
                 Cerrar
               </button>
             </div>
+            {confirmOpen && confirmMovimiento && (
+              <div className="fixed inset-0 z-70 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
+                <div className="relative bg-white rounded-2xl p-6 z-80 w-[92vw] max-w-md">
+                  <h4 className="font-semibold mb-3">
+                    Confirmar llegada - {confirmMovimiento.productos[0]?.nombre || confirmMovimiento.codigo || confirmMovimiento.guidenumber}
+                  </h4>
+                  <label className="block text-sm text-gray-600 mb-1">Día de llegada</label>
+                  <input
+                    type="date"
+                    className="border rounded px-2 py-1 w-full mb-3"
+                    value={confirmDate}
+                    onChange={e => setConfirmDate(e.target.value)}
+                  />
+                  <div className="mb-2 font-semibold text-sm text-gray-700">Productos:</div>
+                  {confirmMovimiento.productos.map((prod, idx) => (
+                    <div key={prod.id} className="mb-2 flex flex-col">
+                      <div className="text-xs mb-1">{prod.nombre}</div>
+                      <input
+                        type="number"
+                        min="0"
+                        className="border rounded px-2 py-1 w-full text-xs"
+                        value={confirmQtys[idx]}
+                        onChange={e => {
+                          const arr = [...confirmQtys];
+                          arr[idx] = e.target.value;
+                          setConfirmQtys(arr);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div className="mb-3 text-sm text-gray-700">
+                    Usuario que confirmará: <span className="font-semibold">{typeof user === "string" ? user : (user?.nombre ?? "unknown")}</span>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setConfirmOpen(false)} disabled={savingConfirm}>Cancelar</button>
+                    <button
+                      className="px-3 py-2 bg-green-600 text-white rounded"
+                      onClick={handleConfirmSubmit}
+                      disabled={savingConfirm || !confirmDate || confirmQtys.some(x => x === "")}
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
-      {confirmOpen && confirmMovimiento && (
+      {confirmOpen && !showPaqModal && confirmMovimiento && (
         <div className="fixed inset-0 z-70 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
           <div className="relative bg-white rounded-2xl p-6 z-80 w-[92vw] max-w-md">
-            <h4 className="font-semibold mb-3">Confirmar llegada - {confirmMovimiento.productoNombre || confirmMovimiento.productoId}</h4>
+            <h4 className="font-semibold mb-3">
+              Confirmar llegada - {confirmMovimiento.productoNombre || confirmMovimiento.productoId}
+            </h4>
             <label className="block text-sm text-gray-600 mb-1">Día de llegada</label>
             <input type="date" className="border rounded px-2 py-1 w-full mb-3" value={confirmDate} onChange={e => setConfirmDate(e.target.value)} />
             <label className="block text-sm text-gray-600 mb-1">Cantidad llegada</label>
-            <input type="number" min="0" className="border rounded px-2 py-1 w-full mb-4" value={confirmQty} onChange={e => setConfirmQty(e.target.value)} />
+            <input type="number" min="0" className="border rounded px-2 py-1 w-full mb-4" value={confirmQtys[0] || ""} onChange={e => setConfirmQtys([e.target.value])} />
             <div className="mb-3 text-sm text-gray-700">
               Usuario que confirmará: <span className="font-semibold">{typeof user === "string" ? user : (user?.nombre ?? "unknown")}</span>
             </div>
             <div className="flex justify-end gap-2">
               <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setConfirmOpen(false)} disabled={savingConfirm}>Cancelar</button>
-              <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={handleConfirmSubmit} disabled={savingConfirm || !confirmDate || confirmQty === ""}>Confirmar</button>
+              <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={handleConfirmSubmit} disabled={savingConfirm || !confirmDate || confirmQtys[0] === ""}>Confirmar</button>
             </div>
           </div>
         </div>

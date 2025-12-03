@@ -180,7 +180,8 @@ export default function Inventario({ open, onClose, tienda, user, onAlertaProduc
           codigo: paqPayload?.codigo ?? null,
           usuario: actor,
           confirmado: false,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          fechaPedido: new Date().toISOString().slice(0, 10)
         });
       });
       await Promise.all(updates);
