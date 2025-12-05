@@ -181,11 +181,6 @@ export default function TiendasInventario({ user }) {
       })
     : [];
 
-  console.log("paqSelectedDate", paqSelectedDate);
-  paqMovimientos.forEach(m => {
-    console.log("MOV {guia:}", m.codigo, "fechaPedido:", m.fechaPedido, "-> normalized:", normalizeFechaOnly(m.fechaPedido));
-  });
-
   const filteredPaqMovimientos = paqMovimientos.filter(m => {
     if (!paqSelectedDate) return true;
     if (!m.fechaPedido) return false;
@@ -212,6 +207,84 @@ export default function TiendasInventario({ user }) {
       return acc;
     }, {})
   );
+
+  function resumenMovimientosPorFecha() {
+    const fechaResumen = selectedDate || new Date().toISOString().slice(0, 10);
+    if (productosInventario.length === 0) return [];
+    const ventasPorProducto = {};
+    movimientos.forEach(mov => {
+      if (
+        mov.tipo === "venta" &&
+        mov.productoId &&
+        mov.fechaPedido &&
+        mov.fechaPedido.slice(0, 10) === fechaResumen
+      ) {
+        ventasPorProducto[mov.productoId] = (ventasPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
+      }
+    });
+    const ventasPosterioresPorProducto = {};
+    movimientos.forEach(mov => {
+      if (
+        mov.tipo === "venta" &&
+        mov.productoId &&
+        mov.fechaPedido &&
+        mov.fechaPedido.slice(0, 10) > fechaResumen
+      ) {
+        ventasPosterioresPorProducto[mov.productoId] = (ventasPosterioresPorProducto[mov.productoId] || 0) + Number(mov.cantidad || 0);
+      }
+    });
+    const allMoves = [...movimientos, ...paqMovimientos];
+    const entradasHoy = allMoves.filter(m =>
+      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) === fechaResumen
+    );
+    const entradasFuturas = allMoves.filter(m =>
+      m.confirmado && m.fechaLlegada && m.fechaLlegada.slice(0, 10) > fechaResumen
+    );
+    const entradasPorProducto = {};
+    entradasHoy.forEach(m => {
+      const pid = m.productoId || m.producto || "_unknown";
+      let diff = 0;
+      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
+        diff = Number(m.diferencia);
+      else if (
+        typeof m.cantidadLlegada !== "undefined" &&
+        typeof m.cantidad !== "undefined"
+      )
+        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
+      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
+      entradasPorProducto[pid] = (entradasPorProducto[pid] || 0) + diff;
+    });
+    const entradasFuturasPorProducto = {};
+    entradasFuturas.forEach(m => {
+      const pid = m.productoId || m.producto || "_unknown";
+      let diff = 0;
+      if (typeof m.diferencia !== "undefined" && m.diferencia !== null)
+        diff = Number(m.diferencia);
+      else if (
+        typeof m.cantidadLlegada !== "undefined" &&
+        typeof m.cantidad !== "undefined"
+      )
+        diff = Number(m.cantidadLlegada) - Number(m.cantidad);
+      else diff = Number(m.cantidadLlegada ?? 0) - Number(m.cantidad ?? 0);
+      entradasFuturasPorProducto[pid] = (entradasFuturasPorProducto[pid] || 0) + diff;
+    });
+
+    return productosInventario.map(prod => {
+      const venta = ventasPorProducto[prod.id] || 0;
+      const ventasPosteriores = ventasPosterioresPorProducto[prod.id] || 0;
+      const entradas = entradasPorProducto[prod.id] || 0;
+      const entradasFuturas = entradasFuturasPorProducto[prod.id] || 0;
+      const currentStock = Number(prod.cantidad || 0);
+      const stockInicial = currentStock + venta + ventasPosteriores - entradas + entradasFuturas;
+      const stockFinal = stockInicial - venta;
+      return {
+        nombre: prod.nombre,
+        venta,
+        stockInicial,
+        stockFinal
+      };
+    });
+  }
 
   function openConfirm(m) {
     setConfirmMovimiento(m);
@@ -341,7 +414,6 @@ export default function TiendasInventario({ user }) {
           user={user}
         />
       )}
-
       {showMovimientos && (
         <div className="fixed inset-0 z-50 flex justify-center items-start sm:items-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeMovimientos} />
@@ -379,8 +451,8 @@ export default function TiendasInventario({ user }) {
               </div>
             </div>
             {showCortes && (
-              <Cortes open={showCortes} onClose={() => setShowCortes(false)} />
-            )}
+  <Cortes open={showCortes} onClose={() => setShowCortes(false)} tienda={activeStore} />
+)}
             {selectedDate && resumenMovimientosPorFecha().filter(prod => prod.venta !== 0).length > 0 && (
               <div className="mb-3 space-y-1 w-full">
                 <div className="font-semibold text-sm text-gray-800">Resumen de hoy:</div>
@@ -431,17 +503,17 @@ export default function TiendasInventario({ user }) {
                   >
                     <button
                       className="flex items-center justify-between w-full px-4 py-3 rounded-xl bg-white active:bg-gray-100 focus:outline-none"
-                      onClick={() =>
-                        setExpandedMov(expandedMov === m.id ? null : m.id)
-                      }
+                      onClick={() => setExpandedMov(expandedMov === m.id ? null : m.id)}
                     >
                       <span className="text-base font-semibold text-gray-800">
-                        {m.productoNombre || m.productoId || m.producto || m.descripcion || "Movimiento"}
+                        {m.metodoPago || "Movimiento"}
                       </span>
                       <span className="text-xs text-gray-700 font-normal">
-                        Cant.: <b>{m.cantidad}</b>
+                        {("precioVenta" in m && m.precioVenta !== undefined && m.precioVenta !== null)
+                          ? <b>{Number(m.precioVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</b>
+                          : ""}
                       </span>
-                      <span className="text-xs text-gray-600 ml-2">{m.fechaPedido ? m.fechaPedido.slice(0,10) : ""}</span>
+                      <span className="text-xs text-gray-600 ml-2">{m.fechaPedido ? m.fechaPedido.slice(0, 10) : ""}</span>
                       <span className="text-xs text-gray-600 ml-2">{m.usuario}</span>
                       <svg
                         className={`w-4 h-4 ml-3 transition-transform ${expandedMov === m.id ? "rotate-180" : ""}`}
@@ -455,26 +527,31 @@ export default function TiendasInventario({ user }) {
                     {expandedMov === m.id && (
                       <div className="px-4 pb-4 pt-1 text-xs text-gray-700 bg-gray-50 rounded-b-xl">
                         <div>Tipo: {m.tipo || "—"}</div>
-                        <div>Cantidad registrada: {m.cantidad}</div>
-                        {typeof m.precio !== "undefined" && (
-                          <div>Precio unitario: {m.precio}</div>
+                        {m.productos && Array.isArray(m.productos) && m.productos.length > 0 ? (
+                          <div>
+                            <div>Productos:</div>
+                            <ul>
+                              {m.productos.map((prod, idx) => (
+                                <li key={idx}>
+                                  {prod.nombre || prod.producto} — Cantidad: <b>{prod.cantidad}</b>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <div>Cantidad registrada: {m.cantidad}</div>
                         )}
-                        {m.cliente && <div>Cliente: {m.cliente}</div>}
+                        {"precioVenta" in m && m.precioVenta !== undefined && m.precioVenta !== null && (
+                          <div>
+                            Precio final: <b>{Number(m.precioVenta).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</b>
+                          </div>
+                        )}
                         <div>Fecha del pedido: {m.fechaPedido}</div>
+                        {m.cliente && <div>Cliente: {m.cliente}</div>}
                         {m.empresa && <div>Empresa: {m.empresa}</div>}
                         {m.codigo && <div>Código: {m.codigo}</div>}
                         <div>Usuario que registró: {m.usuario}</div>
                         <div>{m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
-                        {m.confirmado && (
-                          <div className="mt-2 text-green-700">
-                            <div>Confirmado por: <span className="font-semibold text-gray-800">{m.confirmadoPor ?? "—"}</span></div>
-                            <div>Fecha llegada: <span className="font-semibold text-gray-800">{m.fechaLlegada ?? "—"}</span></div>
-                            <div>Cantidad llegada: <span className="font-semibold text-gray-800">{m.cantidadLlegada ?? "—"}</span></div>
-                            {typeof m.diferencia !== "undefined" && (
-                              <div>Diferencia: <span className="font-semibold">{m.diferencia}</span></div>
-                            )}
-                          </div>
-                        )}
                         {isAdmin && (
                           <div className="pt-2 flex">
                             <button
@@ -500,179 +577,6 @@ export default function TiendasInventario({ user }) {
               >
                 Cerrar
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showPaqModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closePaqModal} />
-          <div className="relative bg-white rounded-2xl p-6 z-70 w-[97vw] max-w-3xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Paqueterías - Movimientos</h3>
-            </div>
-            <div className="mb-4 flex flex-wrap gap-2 items-center">
-              <label className="text-sm text-gray-600">Filtrar por fecha:</label>
-              <input
-                type="date"
-                className="border rounded px-2 py-1 text-sm"
-                value={paqSelectedDate}
-                onChange={e => setPaqSelectedDate(e.target.value)}
-              />
-              <button className="text-sm text-gray-600 underline" onClick={() => setPaqSelectedDate("")}>Limpiar</button>
-            </div>
-            {loadingPaqMovs ? (
-              <div className="text-sm text-gray-600">Cargando movimientos de paqueterías...</div>
-            ) : paqAgrupadosPorGuia.length === 0 ? (
-              <div className="text-sm text-gray-600">No hay movimientos de paqueterías para la fecha seleccionada.</div>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {paqAgrupadosPorGuia.map(m => (
-                  <div key={m.codigo || m.guidenumber || m.id} className="p-3 bg-gray-50 rounded-lg border flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-gray-800">Guía: {m.codigo || m.guidenumber || "SIN_GUIA"}</div>
-                      <div className="text-xs text-gray-600">Tienda: <span className="font-medium text-gray-800">{m.tienda}</span></div>
-                      <div className="text-xs text-gray-600">Empresa: {m.empresa}</div>
-                      <div className="text-xs text-gray-600">Usuario que registró: {m.usuario}</div>
-                      <div className="text-xs text-gray-600">Fecha: {m.timestamp ? new Date(m.timestamp).toLocaleString() : ""}</div>
-                      <div className="text-xs text-gray-600 font-semibold mb-1">Productos enviados:</div>
-                      <ul className="text-xs text-gray-700 mb-2">
-                        {m.productos.map((prod, idx) => (
-                          <li key={idx}>
-                            {prod.nombre} — Cantidad: <b>{prod.cantidad}</b>
-                          </li>
-                        ))}
-                      </ul>
-                      {m.movimientos.some(mv => mv.confirmado) && (
-                        <div className="mt-2 text-xs text-green-700">
-                          <div>Confirmado por: <span className="font-semibold text-gray-800">{m.movimientos.find(mv => mv.confirmado)?.confirmadoPor ?? "—"}</span></div>
-                          <div>
-                            {m.movimientos.map((mv, i) =>
-                              mv.confirmado && (
-                                <div key={i}>
-                                  <div style={{color:'#198754'}}>Producto confirmado: <b>{mv.productoNombre || mv.producto || ""}</b></div>
-                                  <div style={{color:'#198754'}}>Fecha llegada: {formatDateDisplay(mv.fechaLlegada)}</div>
-                                  <div style={{color:'#198754'}}>Cantidad llegada: {mv.cantidadLlegada ?? 0}</div>
-                                  <div style={{color:'#198754'}}>Diferencia: {mv.diferencia ?? 0}</div>
-                                </div>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-3 flex flex-col gap-2">
-                      {!m.movimientos.some(mv => mv.confirmado) && (
-                        <button
-                          className="px-3 py-1 bg-green-600 text-white rounded-md text-xs"
-                          onClick={() => openConfirm(m)}
-                        >
-                          Confirmar
-                        </button>
-                      )}
-                      {isAdmin && (
-                        <button
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs"
-                          onClick={() => handleEliminarMovimiento(m)}
-                        >
-                          Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={closePaqModal}
-                className="px-4 py-2 rounded-md bg-white border border-gray-300 shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:bg-gray-50 text-gray-700"
-              >
-                Cerrar
-              </button>
-            </div>
-            {confirmOpen && confirmMovimiento && (
-              <div className="fixed inset-0 z-70 flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
-                <div className="relative bg-white rounded-2xl p-6 z-80 w-[92vw] max-w-md">
-                  <h4 className="font-semibold mb-3">
-                    Confirmar llegada - {confirmMovimiento.productos[0]?.nombre || confirmMovimiento.codigo || confirmMovimiento.guidenumber}
-                  </h4>
-                  <label className="block text-sm text-gray-600 mb-1">Día de llegada</label>
-                  <input
-                    type="date"
-                    className="border rounded px-2 py-1 w-full mb-3"
-                    value={confirmDate}
-                    onChange={e => setConfirmDate(e.target.value)}
-                  />
-                  <div className="mb-2 font-semibold text-sm text-gray-700">Productos:</div>
-                  {confirmMovimiento.productos.map((prod, idx) => (
-                    <div key={prod.id} className="mb-2 flex flex-col">
-                      <div className="text-xs mb-1">{prod.nombre}</div>
-                      <input
-                        type="number"
-                        min="0"
-                        className="border rounded px-2 py-1 w-full text-xs"
-                        value={confirmQtys[idx]}
-                        onChange={e => {
-                          const arr = [...confirmQtys];
-                          arr[idx] = e.target.value;
-                          setConfirmQtys(arr);
-                        }}
-                      />
-                    </div>
-                  ))}
-                  <div className="mb-3 text-sm text-gray-700">
-                    Usuario que confirmará: <span className="font-semibold">{typeof user === "string" ? user : (user?.nombre ?? "unknown")}</span>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setConfirmOpen(false)} disabled={savingConfirm}>Cancelar</button>
-                    <button
-                      className="px-3 py-2 bg-green-600 text-white rounded"
-                      onClick={handleConfirmSubmit}
-                      disabled={savingConfirm || !confirmDate || confirmQtys.some(x => x === "")}
-                    >
-                      Confirmar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      {confirmOpen && !showPaqModal && confirmMovimiento && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
-          <div className="relative bg-white rounded-2xl p-6 z-80 w-[92vw] max-w-md">
-            <h4 className="font-semibold mb-3">
-              Confirmar llegada - {confirmMovimiento.productoNombre || confirmMovimiento.productoId}
-            </h4>
-            <label className="block text-sm text-gray-600 mb-1">Día de llegada</label>
-            <input type="date" className="border rounded px-2 py-1 w-full mb-3" value={confirmDate} onChange={e => setConfirmDate(e.target.value)} />
-            <label className="block text-sm text-gray-600 mb-1">Cantidad llegada</label>
-            <input type="number" min="0" className="border rounded px-2 py-1 w-full mb-4" value={confirmQtys[0] || ""} onChange={e => setConfirmQtys([e.target.value])} />
-            <div className="mb-3 text-sm text-gray-700">
-              Usuario que confirmará: <span className="font-semibold">{typeof user === "string" ? user : (user?.nombre ?? "unknown")}</span>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setConfirmOpen(false)} disabled={savingConfirm}>Cancelar</button>
-              <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={handleConfirmSubmit} disabled={savingConfirm || !confirmDate || confirmQtys[0] === ""}>Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {deleteConfirm.id && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={handleDeleteCancel} />
-          <div className="relative bg-white rounded-2xl p-6 z-110 w-[92vw] max-w-sm flex flex-col items-center">
-            <h3 className="text-lg font-bold mb-4">Eliminar Movimiento</h3>
-            <div className="mb-6 text-center text-gray-700">
-              ¿Seguro que deseas eliminar este movimiento? Esta acción <b>no se puede deshacer.</b>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleDeleteCancel} className="px-4 py-2 rounded bg-gray-200">Cancelar</button>
-              <button onClick={handleDeleteConfirm} className="px-4 py-2 rounded bg-red-600 text-white">Eliminar</button>
             </div>
           </div>
         </div>
